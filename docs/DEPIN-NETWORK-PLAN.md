@@ -2,7 +2,7 @@
 
 **Status:** draft untuk dibahas nanti. Belum ada klien yang dipasang, dan PR ini tidak dimaksudkan untuk digabung sebelum ada keputusan.
 **Tanggal:** Senin, 16 November 2026 (WIB, UTC+7)
-**Dasar:** [`DEPIN-RETURNS.md`](DEPIN-RETURNS.md) (estimasi return, sumber, dan penghambat) serta catatan benchmark `komputerbox10` (8 vCPU Xeon Emerald Rapids, 15 GiB RAM, ~100 GB NVMe kelas Gen3, tanpa GPU, KVM ada).
+**Dasar:** [`DEPIN-RETURNS.md`](DEPIN-RETURNS.md) (estimasi return, sumber, dan penghambat) serta [`BENCHMARK-komputerbox.md`](BENCHMARK-komputerbox.md) (8 vCPU Xeon Emerald Rapids, 15 GiB RAM, ~100 GB NVMe kelas Gen3, tanpa GPU, KVM ada).
 
 Dokumen ini merangkum hasil riset supaya kita bisa memutuskan **jaringan DePIN mana yang akan dipakai**, di **hardware yang mana**, dan **bukan** di komputerbox. Jangan menulis auth key, token, kata sandi, URL/key webhook, atau rahasia lain di berkas ini.
 
