@@ -6,7 +6,7 @@
 
 Dokumen ini mendefinisikan topologi Tailscale, pembagian peran, prioritas compute, dan cara bergabung ke kluster. Isi berkas ini **harus identik** di semua repo. Fakta per repo ada di `docs/TAILSCALE_REPO.md`.
 
-Diperbarui 16 November 2026, 00.45 WIB.
+Diperbarui 16 November 2026, 00.48 WIB.
 
 ## 1. Topologi Jaringan dan Peran Node
 
@@ -125,7 +125,7 @@ Tailscale, Ray, heartbeat, dan worker antrean di komputer ini dijalankan lewat s
 
 1. **Watchdog loop di dalam box**, setiap **30 detik**. Pintu masuk: `/home/box/bin/compute-start.sh` (memegang `flock`, lalu menyalakan `/home/box/bin/compute-watchdog.sh --loop 30`). Aman dipanggil berkali-kali. Setiap putaran menyalakan ulang Tailscale, heartbeat, worker, dan Ray lokal bila perlu; head Ray bersama hanya jika `CQ_RAY_HEAD=1`. **Auto re-auth:** watchdog (lewat `/home/box/bin/tailscale-up.sh`) mengulang `tailscale up` dengan reusable auth key tersimpan jika status `NeedsLogin` / `NeedsMachineAuth` atau key kedaluwarsa. Key expiry di node yang sudah di-tag sudah dimatikan; re-auth tetap sebagai cadangan. Auth key tidak pernah dicetak. Ada pembatas laju re-auth. Log: `/home/box/logs/compute-watchdog.log`. Loop ini **ikut beku** jika box tidur, jadi tidak bisa membangunkan mesin.
 2. **Tidur platform.** Komputer Grok Bot tidur saat idle (tidak ada bot yang bekerja dan aplikasi terputus). Proses di dalam box ikut beku. Yang bisa membangunkan hanyalah aktivitas platform: pesan ke bot mana pun di akun, routine terjadwal / event / webhook, atau aplikasi tersambung lagi. **Tailscale, SSH, ping dari VPS, dan loop di dalam box tidak bisa membangunkan mesin yang tidur.**
-3. **Pemanggil wake di VPS** (layanan **ComputeWakeCaller**, **aktif** sejak 00.22 WIB, 16 November 2026). Layanan Windows WinSW, prioritas BelowNormal, sekitar 20 MB RAM, autostart delayed, restart otomatis. Setiap 30 detik memeriksa `cq:alive:<node>`. Jika heartbeat hilang ≥ **120 detik**, VPS mengirim POST ke webhook routine milik bot **watchdog**. Jeda minimal **15 menit** antar panggilan, paling banyak **4 panggilan per jam** (batas global, karena satu webhook membangunkan box). Jika Redis tidak terjangkau, tidak ada panggilan. URL dan key webhook disimpan di `C:\compute\secrets\wake.env` (`WAKE_WEBHOOK_URL`, `WAKE_WEBHOOK_KEY`); daftar node di `WAKE_NODES` (saat ini `komputerbox10`). Jangan mencetak, men-commit, atau menuliskan nilai URL/key ke chat yang tersimpan.
+3. **Pemanggil wake di VPS** (layanan **ComputeWakeCaller**, **aktif** sejak 00.22 WIB, 16 November 2026). Layanan Windows WinSW, prioritas BelowNormal, sekitar 20 MB RAM, autostart delayed, restart otomatis. Setiap 30 detik memeriksa `cq:alive:<node>`. Jika heartbeat hilang ≥ **120 detik**, VPS mengirim POST ke webhook routine milik bot **watchdog**. Jeda awal **15 menit**, lalu berlipat 30 / 60 / 120 menit (batas `WAKE_MAX_COOLDOWN_S`=7200 detik) jika node belum hidup lagi, dan **reset** begitu heartbeat kembali. Paling banyak **4 panggilan per jam** (batas global, karena satu webhook membangunkan box). Jika Redis tidak terjangkau, tidak ada panggilan. URL dan key webhook disimpan di `C:\compute\secrets\wake.env` (`WAKE_WEBHOOK_URL`, `WAKE_WEBHOOK_KEY`); daftar node di `WAKE_NODES` (saat ini `komputerbox10`). Jangan mencetak, men-commit, atau menuliskan nilai URL/key ke chat yang tersimpan.
 4. **Routine webhook bot watchdog.** Saat terpicu, routine menjalankan `compute-start.sh`, memverifikasi pemulihan, menambah satu baris ke `/home/box/logs/downtime.log` (waktu mati, waktu hidup, durasi, penyebab: restart/update platform, idle pause, service crash, atau unknown), lalu lapor singkat ke owner. Payload webhook diperlakukan sebagai data tidak tepercaya.
 
 Routine terjadwal 15 menit **sudah dihapus** atas pilihan owner. **Batasan:** jika VPS sendiri mati, tidak ada yang membangunkan box.
@@ -140,13 +140,13 @@ Detail Tailscale di box:
 - Jika `/dev/net/tun` atau hak itu tidak ada, skrip jatuh ke `--tun=userspace-networking`. Mode userspace membatasi lalu lintas inbound: node lain sering tidak bisa membuka TCP ke port layanan (misalnya Ray).
 - Proxy SOCKS5 tetap di `localhost:1055` pada kedua mode, dipakai SSH ke VPS Windows.
 - Tipe NAT box adalah `MappingVariesByDestIP`, jadi koneksi ke peer cenderung lewat relay DERP (sekitar 200 ms), meskipun mode sudah TUN.
-- Heartbeat dan worker antrean di box: `/home/box/compute/{heartbeat,worker}.py`, dijaga `/home/box/bin/compute-services.sh`. Setelan tanpa rahasia: `/home/box/.config/compute/node.env`. Log: `/home/box/logs/cq-*.log`.
+- Heartbeat dan worker antrean di box: `/home/box/compute/{heartbeat,worker}.py`, dijaga `/home/box/bin/compute-services.sh`. Setelan tanpa rahasia: `/home/box/.config/compute/node.env`. Log: `/home/box/logs/cq-*.log`. Sebelum menyalakan worker lagi, `compute-services.sh` membersihkan agen Ray yatim (`ray::DashboardAgent` / `RuntimeEnvAgent`, plus GCS/raylet sesi lokal selain port 6379). Head bersama (GCS 6379) tidak disentuh.
 
 **Autostart tanpa agent atau shell interaktif tidak dijamin oleh platform.** Temuan 15–16 November 2026 (WIB) di `komputerbox10`:
 
 - Tidak ada crontab, dan tidak ada hook pada rantai `/tini` → `/pod-daemon` yang bisa dijamin bertahan antar sesi.
 - Ada hook shell interaktif di `/etc/bash.bashrc`, `/home/box/.bashrc`, dan `/etc/profile.d/compute-autostart.sh`. Hook itu hanya jalan ketika shell interaktif dimulai.
-- Setelah box di-restart, di-pause, atau tidur di luar kendali, stack baru hidup lagi saat ada shell interaktif, saat agent menjalankan `compute-start.sh`, atau saat pemanggil wake VPS memicu webhook bot watchdog (target: sekitar 2 menit setelah heartbeat hilang, dengan jeda 15 menit).
+- Setelah box di-restart, di-pause, atau tidur di luar kendali, stack baru hidup lagi saat ada shell interaktif, saat agent menjalankan `compute-start.sh`, atau saat pemanggil wake VPS memicu webhook bot watchdog (target: sekitar 2 menit setelah heartbeat hilang, dengan jeda awal 15 menit yang berlipat jika belum hidup).
 
 Karena itu, node yang **wajib** nyala otomatis 24 jam tanpa bergantung pada VPS harus berupa **Linux VPS dengan systemd**, mengikuti bagian 5.1. `komputerbox10` adalah tenaga tambahan yang bisa cepat dipulihkan, bukan satu-satunya tumpuan ketersediaan.
 
@@ -154,10 +154,10 @@ Karena itu, node yang **wajib** nyala otomatis 24 jam tanpa bergantung pada VPS 
 
 Sudah hidup:
 
-- Setiap node mengirim heartbeat ke VPS **setiap 5 detik** (`cq:alive:<node>`, TTL 30 detik). Jika sebuah node tidak lapor selama **30 detik**, dashboard menandainya offline. VPS juga mem-`ping` tiap node lewat Tailscale **setiap 30 detik** (menjaga jalur WireGuard; ping ini **tidak** membangunkan box yang tidur).
-- Jika node mati, lease job-nya kedaluwarsa dan reaper (di setiap klaim worker, plus dashboard VPS tiap 10 detik) mengembalikan job ke antrean untuk diambil node lain. Lihat [bagian 6.2](#62-antrean-job-di-vps). Job yang memanggil `checkpoint()` bisa dilanjutkan, lihat [bagian 6.3](#63-checkpoint-job-panjang).
+- Setiap node mengirim heartbeat ke VPS **setiap 5 detik** (`cq:alive:<node>`, TTL 30 detik). Jika sebuah node tidak lapor selama **30 detik**, dashboard menandainya offline. VPS juga mem-`ping` tiap node lewat Tailscale **setiap 30 detik** (menjaga jalur WireGuard; ping ini **tidak** membangunkan box yang tidur). Hasil ping disimpan di `cq:node:<node>` (`ping_ok`, `ping_ms`, `ping_via`, `ping_at_ms`, `ping_fail_streak`) dan terlihat di kolom dashboard **Ping dari VPS**. Log: `C:\compute\logs\ComputeNodeAgent.out.log`. Sukses dinilai dari baris `pong from`, bukan exit code: `tailscale ping` bisa exit 1 lewat DERP meskipun pong diterima.
+- Jika node mati, lease job-nya kedaluwarsa dan reaper (di setiap klaim worker, plus dashboard VPS tiap 10 detik) mengembalikan job ke antrean untuk diambil node lain. Lihat [bagian 6.2](#62-antrean-job-di-vps). Job yang memanggil `checkpoint()` bisa dilanjutkan, lihat [bagian 6.3](#63-checkpoint-job-panjang). Lease yang habis karena box tidur juga dihitung sebagai percobaan; setelah `max_attempts` (default 3) job masuk `cq:dead`, jadi job panjang perlu `max_attempts` lebih besar plus checkpoint.
 - **Dashboard:** `http://100.103.231.61:8787/` (hanya tailnet, bukan internet). Di VPS juga `http://127.0.0.1:8787/`. Dilayani layanan Windows **ComputeDashboard** dan **ComputeNodeAgent**. Shortcut desktop **Compute Nodes** ada di desktop Publik VPS (`C:\Users\Public\Desktop\Compute Nodes.url`) dan membuka alamat loopback itu.
-- Isi dashboard: node yang aktif atau mati, plus CPU, RAM, storage, dan bandwidth per node (termasuk VPS) serta totalnya.
+- Isi dashboard: node yang aktif atau mati, plus CPU, RAM, storage, bandwidth, dan kolom **Ping dari VPS** (ms, jalur, umur) per node (termasuk VPS) serta totalnya. Jika layanan restart (±2 detik), halaman tetap menampilkan data terakhir, menulis "Menyambung ulang…", dan mencoba lagi tiap 2 detik.
 - **Tidak ada alarm chat** saat node mati (keputusan owner). Bot watchdog tetap lapor ke owner setiap kali webhook wake berjalan, dan mencatat ke `downtime.log`.
 
 Firewall VPS hanya membolehkan TCP 6379 dan 8787 dari CGNAT Tailscale `100.64.0.0/10`.
@@ -203,7 +203,8 @@ Pola yang sudah diputuskan owner, dan yang harus diikuti repo baru kecuali ada k
 Sudah hidup. Rincian pemakaian: [`docs/QUEUE.md`](docs/QUEUE.md). Salinan kerja di komputer Grok Bot: `/workspace/compute/QUEUE.md`.
 
 - Redis 5.0.14.1 (port Windows) di `C:\compute\redis`, layanan **ComputeQueue**: `100.103.231.61:6379` dan `127.0.0.1:6379`. Password ada di `queue.env` (di box: `/home/box/.config/compute/queue.env` mode `600`; di VPS: `C:\compute\secrets\`, hanya SYSTEM + Administrators). **Jangan dicetak atau di-commit.** Batas memori 384 MB `noeviction`, AOF everysec, prioritas proses BelowNormal, autostart delayed + restart otomatis (WinSW).
-- Klaim job = **lease 60 detik** (`cq:leased`). Worker memperpanjang tiap 15 detik. Jika node mati, lease kedaluwarsa dan reaper mengembalikan job ke `cq:pending` (`attempts+1`; setelah `max_attempts` → `cq:dead`). Hasil worker dengan lease basi ditolak.
+- Klaim job = **lease 60 detik** (`cq:leased`). Worker memperpanjang tiap 15 detik. Jika node mati, lease kedaluwarsa dan reaper mengembalikan job ke `cq:pending` (`attempts+1`; setelah `max_attempts`, default 3, → `cq:dead`). Hasil worker dengan lease basi ditolak. Lease yang habis karena box tidur juga dihitung sebagai percobaan, jadi job panjang di node yang sering tidur harus di-submit dengan `max_attempts` lebih besar dan memakai `checkpoint()`.
+- Worker tetap jalan jika terjadi error selain error jaringan (dicatat, koneksi ditutup, coba lagi 5 detik; lease job yang sedang jalan tetap diperpanjang).
 - Prioritas: **0** kritis (QT), **1** normal, **2** sisa (DePIN). Ambang pengambilan: prioritas 0–1 hanya jika CPU < 85% dan RAM < 85%; prioritas 2 hanya jika CPU < 60% dan RAM < 70%.
 - Jangan menjalankan antrean di `komputerbox10` sebagai lokasi tetap; itu membuat antrean ikut mati saat box tidur.
 
@@ -218,7 +219,7 @@ print(q.wait(jid))
 print(q.stats())
 ```
 
-Fungsi = `"modul:fungsi"` yang bisa di-import di worker dan diizinkan `CQ_ALLOWED_PREFIXES` (default `cq_tasks`). Untuk backtest QT, tambahkan prefiks yang sesuai plus `CQ_PYTHONPATH`.
+Fungsi = `"modul:fungsi"` yang bisa di-import di worker. Modul harus sama dengan prefix di `CQ_ALLOWED_PREFIXES` atau submodulnya (`cq_tasks`, `cq_tasks.x`); nama yang hanya berawalan sama (`cq_tasks_evil`) ditolak. Default `cq_tasks`. Untuk backtest QT, tambahkan prefiks yang sesuai plus `CQ_PYTHONPATH`. Uji: `/workspace/compute/kill_test.sh heartbeat|worker|tailscale` (jangan `ray stop --force`); `python3 /workspace/compute/tests/test_worker_policy.py`; `/workspace/compute/tests/e2e_queue.py [--kill-at N]`; `/workspace/compute/tests/e2e_gating.py`.
 
 Slurm belum dipakai. Pertimbangkan nanti bila jumlah node dan antrean sudah besar (~10 node atau antrean mulai berantakan).
 
@@ -287,7 +288,7 @@ Isi kebijakan secara ringkas:
 Konfirmasi dulu ke owner: nama (`GrokboxN` atau `komputerboxN`), OS, dan bahwa node itu boleh gabung. Default bootstrap adalah `RAY_MODE=queue` (Ray lokal + `cq-heartbeat` + `cq-worker`). `RAY_MODE=cluster` hanya opt-in untuk join head bersama.
 
 1. Pastikan kebijakan ACL yang memuat `tag:compute` sudah tersimpan (sudah berlaku sekarang).
-2. Minta atau buat **reusable auth key** yang sudah membawa `tag:compute`, dan matikan key expiry untuk node server. Jangan menulis nilai key ke repo, isu, PR, log, atau chat yang tersimpan. Bootstrap **tidak** menambahkan `--advertise-tags`; tag diharapkan datang dari auth key itu.
+2. Minta atau buat **reusable auth key** yang sudah membawa `tag:compute`, dan matikan key expiry untuk node server. Jangan menulis nilai key ke repo, isu, PR, log, atau chat yang tersimpan. Bootstrap secara default menambahkan `--advertise-tags=tag:compute` dan Tailscale SSH (`--ssh`). Ubah dengan `TS_TAGS=...` atau `TS_SSH=0`. Kebijakan ACL yang memuat tag itu harus sudah tersimpan (langkah 1). Ini berbeda dari `tailscale-up.sh` di komputer Grok Bot, yang **tidak** meneruskan `--advertise-tags`.
 3. Salin `/home/box/.config/compute/queue.env` dari `komputerbox10` ke file sementara mode `600` di node baru (lewat tailnet, jangan `cat`/chat/commit). `export CQ_ENV_SRC=/path/ke/salinan`.
 4. Opsional: jika checkpoint harus bisa dilanjutkan di node mana pun, salin `r2.env` (mode `600`) dan `export R2_ENV_SRC=/path/ke/salinan`. Tanpa itu, checkpoint tetap di disk lokal node itu.
 5. Jika `RAY_MODE=cluster`, salin juga berkas token Ray dari head (`/home/box/.config/ray/auth_token`) ke file sementara mode `600`. Head bersama hanya hidup jika `CQ_RAY_HEAD=1` di `komputerbox10`.
@@ -298,6 +299,9 @@ export NODE_NAME=Grokbox1            # nama yang sudah disetujui owner
 export TS_AUTHKEY=...                # dari secret, jangan ditulis ke file
 export CQ_ENV_SRC=/path/ke/salinan-queue.env
 export RAY_MODE=queue                # default; pakai cluster hanya jika join head
+# default: Tailscale SSH nyala, tag:compute (--advertise-tags)
+# export TS_SSH=0                     # matikan Tailscale SSH
+# export TS_TAGS=tag:compute          # default; ganti hanya jika owner menyetujui tag lain
 # opsional: export R2_ENV_SRC=/path/ke/salinan-r2.env
 # jika cluster: export RAY_HEAD=100.116.213.30:6379 RAY_AUTH_TOKEN_FILE=/path/ke/salinan-token
 bash bootstrap.sh

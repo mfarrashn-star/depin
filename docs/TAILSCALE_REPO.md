@@ -2,7 +2,7 @@
 
 > Mengikuti aturan umum di [`TAILSCALE.md`](../TAILSCALE.md)
 
-Diperbarui 16 November 2026, 00.45 WIB. Repo ini masih hampir kosong, tetapi arah DePIN, antrean, dan batasannya sudah diputuskan. Jangan menulis auth key, token Ray, password Redis, URL/key webhook, kata sandi, atau rahasia lain di berkas ini.
+Diperbarui 16 November 2026, 00.48 WIB. Repo ini masih hampir kosong, tetapi arah DePIN, antrean, dan batasannya sudah diputuskan. Jangan menulis auth key, token Ray, password Redis, URL/key webhook, kata sandi, atau rahasia lain di berkas ini.
 
 ## Node yang dipakai
 
@@ -44,9 +44,9 @@ Langkah pertama yang realistis menunggu node rumahan atau Linux 24/7 pertama gab
 
 ## Ketersediaan node
 
-Mengikuti `TAILSCALE.md` bagian 5. Komputer Grok Bot bisa tidur saat idle; yang membangunkan adalah aktivitas platform atau pemanggil wake VPS ke webhook bot watchdog (aktif sejak 00.22 WIB, 16 November 2026; jeda 15 menit, maks 4/jam; Redis tidak terjangkau → tidak menembak). Watchdog loop 30 detik (termasuk auto re-auth) hanya memperbaiki service setelah mesin bangun. Routine terjadwal 15 menit sudah dihapus. Jika VPS mati, tidak ada yang membangunkan box. `tailscale-up.sh` tidak meneruskan `--advertise-tags` dan tidak memakai exit node. Node yang wajib 24/7 tanpa bergantung pada VPS harus Linux VPS dengan systemd (`/workspace/compute/node-bootstrap/`, unit `cq-heartbeat` dan `cq-worker`).
+Mengikuti `TAILSCALE.md` bagian 5. Komputer Grok Bot bisa tidur saat idle; yang membangunkan adalah aktivitas platform atau pemanggil wake VPS ke webhook bot watchdog (aktif sejak 00.22 WIB, 16 November 2026; jeda awal 15 menit, lalu 30/60/120 menit sampai `WAKE_MAX_COOLDOWN_S`=7200, reset saat heartbeat kembali, maks 4/jam; Redis tidak terjangkau → tidak menembak). Watchdog loop 30 detik (termasuk auto re-auth) hanya memperbaiki service setelah mesin bangun. Routine terjadwal 15 menit sudah dihapus. Jika VPS mati, tidak ada yang membangunkan box. `tailscale-up.sh` tidak meneruskan `--advertise-tags` dan tidak memakai exit node. Node yang wajib 24/7 tanpa bergantung pada VPS harus Linux VPS dengan systemd (`/workspace/compute/node-bootstrap/`, unit `cq-heartbeat` dan `cq-worker`; default bootstrap memasang `tag:compute` dan Tailscale SSH, bisa diubah `TS_TAGS` / `TS_SSH=0`).
 
-Banyak jaringan DePIN mengharapkan uptime tinggi. Jangan memasang klien yang menghukum downtime di `komputerbox10`. Dashboard: `http://100.103.231.61:8787/` (tailnet saja, termasuk storage dan bandwidth, shortcut **Compute Nodes** di desktop Publik VPS). Heartbeat tiap 5 detik, offline setelah 30 detik, VPS mem-ping node tiap 30 detik. Tidak ada alarm chat saat node mati.
+Banyak jaringan DePIN mengharapkan uptime tinggi. Jangan memasang klien yang menghukum downtime di `komputerbox10`. Dashboard: `http://100.103.231.61:8787/` (tailnet saja, termasuk storage, bandwidth, dan kolom **Ping dari VPS**, shortcut **Compute Nodes** di desktop Publik VPS). Heartbeat tiap 5 detik, offline setelah 30 detik, VPS mem-ping node tiap 30 detik (hasil di `cq:node:<node>`; `tailscale ping` bisa exit 1 lewat DERP meskipun sukses). Jika layanan restart, halaman menampilkan data terakhir dan "Menyambung ulang…". Tidak ada alarm chat saat node mati.
 
 ## Cara menjalankan / deploy
 
