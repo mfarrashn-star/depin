@@ -27,9 +27,16 @@ Beban repo ini adalah DePIN. Calon jaringan adalah Akash: CPU dan disk disewakan
 
 Akash bukan prioritas. Website dan quantitative-trading harus tetap hidup. Akash hanya boleh memakai sisa compute, dengan buffer, dan tidak pernah 100% CPU atau RAM satu mesin.
 
+Batas per Grokbox:
+
+- Saat agen AI sedang berjalan, bandwidth dan storage untuk DePIN paling besar 80%.
+- Saat agen AI diam, bandwidth dan storage boleh naik sampai 95%.
+- Jika beban 80% saat agen berjalan membuat agen tidak responsif, turunkan jatah DePIN otomatis sampai compute untuk agen longgar. Naikkan lagi ketika beban mereda.
+- VPS (FPS) tidak ikut DePIN sama sekali: tidak ada disk, CPU, maupun bandwidth.
+
 Docker memisahkan proses website dan trading dari proses DePIN. Mining tidak dipakai, karena mining mengunci CPU di 100%.
 
-Akash belum dipasang. Pasang di `Grokbox25` setelah mesin itu online, terukur, dan sisa compute sesudah buffer masih memenuhi syarat provider di Linux. Angka buffer belum dikunci. Usulan yang menunggu konfirmasi: sisakan minimal 25% CPU, 25% RAM, dan 2 GB terakhir untuk sistem, layanan sendiri, dan training. Jika sisa itu di bawah syarat provider, node itu tidak menjalankan Akash.
+Akash belum dipasang. Pasang di `Grokbox25` setelah mesin itu online, terukur, dan sisa compute sesudah batas di atas masih memenuhi syarat provider di Linux. Jika sisa itu di bawah syarat provider, node itu tidak menjalankan Akash.
 
 ## Ketersediaan node
 
@@ -43,7 +50,7 @@ Belum ada perintah deploy. Node baru, auth key, tag, dan Funnel butuh konfirmasi
 
 ## Data dan storage
 
-Disk untuk DePIN ada di Grokbox. Disk VPS tidak dipakai untuk itu. Database website tetap Supabase, di luar repo ini.
+Disk dan bandwidth untuk DePIN ada di Grokbox, dengan batas di bagian Framework komputasi. VPS (FPS) tidak menyewakan disk, CPU, atau bandwidth. Database website tetap Supabase, di luar repo ini.
 
 ## Catatan khusus
 
