@@ -16,7 +16,6 @@ Pemeriksaan tailnet pada 15 November 2026, sekitar 21.13 WIB:
 
 - VPS Windows sedang online.
 - Satu node Linux sedang offline. Speknya belum terbaca.
-- Satu ponsel sedang offline. Ponsel bukan pekerja DePIN.
 - Laptop tidak muncul.
 - Belum ada 30 Grokbox.
 
