@@ -11,17 +11,20 @@ Dokumen ini mendefinisikan konfigurasi Tailscale dan infrastruktur pendukung unt
 | Node | Peran |
 |------|-------|
 | **VPS** | Subnet Router (menjangkau jaringan lokal) dan Exit Node (mengamankan lalu lintas internet) |
-| **Grokbox1, Grokbox2, dst.** | Compute Nodes. Semua terhubung dalam satu jaringan mesh untuk komputasi terdistribusi. Skala bisa sampai sekitar 30 node |
+| **KomputerBox1, KomputerBox2, dst.** | Server fisik. Compute node. Mesh dua arah, harus tetap hidup. Skala bisa sampai sekitar 30 node |
+| **CloudGrokBox + nomor akun** | Cloud yang tetap hidup walaupun agen tidak sedang berjalan. Contoh akun ini: `CloudGrokBox25`. Ikut mesh yang sama |
+
+Sesi agen yang mati bersama agen bukan baris di tabel itu.
 
 ## Pembagian compute
 
-VPS adalah penghubung. CPU di VPS dipakai untuk layanan yang harus tetap hidup, dan untuk pekerjaan yang terikat pada akun di mesin itu. Beban layanan itu juga dibagi ke Grokbox yang sedang online. VPS bukan satu-satunya pekerja, dan VPS bukan pekerja DePIN.
+VPS adalah penghubung. CPU di VPS dipakai untuk layanan yang harus tetap hidup, dan untuk pekerjaan yang terikat pada akun di mesin itu. Beban layanan itu juga dibagi ke KomputerBox yang sedang online, dan ke CloudGrokBox yang memang tetap hidup. VPS bukan satu-satunya pekerja, dan VPS bukan pekerja DePIN.
 
-Training dan pekerjaan batch yang tidak terikat akun di VPS dijalankan di Grokbox.
+Training dan pekerjaan batch yang tidak terikat akun di VPS dijalankan di KomputerBox. CloudGrokBox boleh ikut bila mesin itu tetap tersambung saat agen tidak berjalan.
 
-DePIN menyewakan sisa CPU dan disk, hanya di Grokbox, dengan buffer, dan tidak pernah memakai 100% CPU atau RAM. Docker atau batas cgroup memisahkan proses DePIN dari layanan sendiri dan dari training, supaya DePIN tidak mengurangi jatah itu.
+DePIN menyewakan sisa CPU dan disk, hanya di KomputerBox, dengan buffer, dan tidak pernah memakai 100% CPU atau RAM. Docker atau batas cgroup memisahkan proses DePIN dari layanan sendiri dan dari training, supaya DePIN tidak mengurangi jatah itu. DePIN tidak berjalan di VPS dan tidak berjalan di sesi agen yang ikut mati.
 
-Satu Grokbox cukup untuk mulai. Node lain ditambahkan kemudian. Node yang akan disambungkan owner tidak dianggap sudah online. Bila Grokbox putus, layanan di VPS tetap jalan. Training menunggu node yang online.
+Satu KomputerBox cukup untuk mulai. Node lain ditambahkan kemudian. Node yang akan disambungkan owner tidak dianggap sudah online. Bila KomputerBox putus, layanan di VPS tetap jalan. Training menunggu node yang online.
 
 Bagian 5 di bawah memilih kerangka untuk pekerjaan sendiri. DePIN bukan pengganti tabel itu.
 
@@ -32,7 +35,7 @@ Bagian 5 di bawah memilih kerangka untuk pekerjaan sendiri. DePIN bukan penggant
 - **MagicDNS**: nama host otomatis untuk tiap perangkat, mempermudah komunikasi antar-node.
 
 **Direkomendasikan (aktifkan sesuai kebutuhan)**
-- **Access Control Lists (ACL)**: batasi akses antar node seperlunya (mis. hanya laptop yang boleh SSH ke semua node; Grokbox tidak perlu menjangkau VPS). Untuk banyak node, gunakan **tag** (mis. `tag:grokbox`) agar tidak mengatur satu per satu.
+- **Access Control Lists (ACL)**: batasi akses antar node seperlunya (mis. hanya laptop yang boleh SSH ke semua node; KomputerBox tidak perlu menjangkau VPS). Untuk banyak node, gunakan **tag** (mis. `tag:komputerbox`) agar tidak mengatur satu per satu. ACL belum dipakai.
 - **Tags**: kelompokkan node berdasarkan peran, dipakai bersama ACL.
 - **Auth key / tagged key**: untuk menambah node baru secara otomatis (tetap wajib konfirmasi ke user dulu).
 
@@ -46,13 +49,17 @@ MagicDNS dan Tailscale SSH adalah fitur yang dipakai pada node Linux. ACL, tag, 
 Semua agent **wajib** mematuhi konvensi ini dan **melakukan konfirmasi ke user sebelum membuat node baru**.
 
 - VPS: `VPS`
-- Compute Nodes: `Grokbox1`, `Grokbox2`, dan seterusnya
+- Server fisik: `KomputerBox1`, `KomputerBox2`, dan seterusnya
+- Cloud yang tetap hidup saat agen tidak berjalan: `CloudGrokBox` diikuti nomor akun. Akun ini memakai `CloudGrokBox25`
+- Sesi agen yang berhenti bersama agen tidak memakai kedua nama itu
 
-Catatan: MagicDNS menampilkan nama host dalam huruf kecil (mis. `vps`, `grokbox1`). Jika ada node lama dengan nama di luar konvensi, tanyakan ke user sebelum mengganti nama.
+MagicDNS menampilkan nama host dalam huruf kecil (mis. `vps`, `komputerbox1`, `cloudgrokbox25`). Nama di konsol memakai huruf itu, tanpa spasi.
+
+Nama lama `Grokbox1` dan `grokbox-p4` tidak dipakai untuk node baru. Mesin yang sudah terdaftar diganti hanya bila owner meminta nama baru itu. Owner menetapkan pola `KomputerBox` dan `CloudGrokBox` pada 15 November 2026.
 
 ## 4. Ketersediaan Node (Wajib saat Setup)
 
-Setiap mesin Linux (Grokbox) harus **selalu hidup dan selalu terhubung ke tailnet**. Node yang mati, tidur, atau kehilangan koneksi membuat kluster tidak bisa dipakai (gejalanya: status "Not connected" dan ping timeout). Langkah `systemctl` di bawah untuk mesin Linux. VPS Windows tidak memakai langkah itu, dan agen tidak me-reboot VPS. Saat agent men-setup atau menyiapkan mesin Linux, pastikan hal berikut:
+Setiap KomputerBox, dan setiap CloudGrokBox yang memang tetap hidup, harus **selalu hidup dan selalu terhubung ke tailnet**. Hubungan itu dua arah: node bisa dihubungi dari tailnet, dan node bisa menghubungi node lain. Node yang mati, tidur, atau kehilangan koneksi membuat kluster tidak bisa dipakai (gejalanya: status "Not connected" dan ping timeout). Sesi agen yang ikut mati saat agen berhenti tidak memenuhi syarat ini dan tidak dimasukkan sebagai node. Langkah `systemctl` di bawah untuk mesin Linux yang tetap hidup. VPS Windows tidak memakai langkah itu, dan agen tidak me-reboot VPS. Saat agent men-setup atau menyiapkan mesin Linux yang tetap hidup, pastikan hal berikut:
 
 1. **Tailscale jalan otomatis saat boot**
    - `sudo systemctl enable --now tailscaled`
@@ -60,9 +67,9 @@ Setiap mesin Linux (Grokbox) harus **selalu hidup dan selalu terhubung ke tailne
    - `sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target`
    - Untuk laptop: abaikan penutupan lid (`HandleLidSwitch=ignore` di `/etc/systemd/logind.conf`), dan pastikan terhubung ke daya.
 3. **Key tidak boleh kedaluwarsa untuk node server**
-   - Matikan key expiry untuk VPS dan Grokbox di admin console Tailscale (atau gunakan tagged auth key, yang tidak kedaluwarsa seperti key user).
+   - Matikan key expiry untuk VPS, KomputerBox, dan CloudGrokBox di admin console Tailscale (atau gunakan tagged auth key, yang tidak kedaluwarsa seperti key user).
 4. **Gabung ke tailnet dengan Tailscale SSH aktif**
-   - `sudo tailscale up --ssh` (tambahkan `--advertise-tags=tag:grokbox` bila memakai tag dan ACL).
+   - `sudo tailscale up --ssh` (tambahkan `--advertise-tags=tag:komputerbox` bila memakai tag dan ACL).
 5. **Proses kerja berjalan sebagai service**
    - Gunakan `systemd` (atau tmux/screen untuk sementara) supaya Ray worker, MinIO, dan service lain hidup kembali setelah reboot dan tidak mati saat sesi SSH ditutup.
 6. **Koneksi internet stabil**
@@ -109,7 +116,7 @@ Untuk repo dengan banyak node yang membaca data besar, pertimbangkan jarak jarin
 
 ## 7. Konteks bagi Agent
 
-- Saat file ini ada di repo, agent memahami topologi komputasi yang tersedia, termasuk akses SSH ke VPS dan pemanfaatan kluster Grokbox.
+- Saat file ini ada di repo, agent memahami topologi komputasi yang tersedia, termasuk akses SSH ke VPS dan pemanfaatan KomputerBox serta CloudGrokBox yang tetap hidup.
 - Pilihan akhir framework dan storage ditentukan oleh agent berdasarkan kebutuhan repo yang sedang dikerjakan. Jika ragu atau pilihan berdampak besar, konfirmasi ke user.
 
 ## 8. Dokumentasi per Repo
@@ -130,7 +137,7 @@ Template minimal dokumen per repo:
 > Mengikuti aturan umum di TAILSCALE.md
 
 ## Node yang dipakai
-- (mis. VPS, Grokbox1, Grokbox2)
+- (mis. VPS, KomputerBox1, CloudGrokBox25)
 
 ## Framework komputasi
 - (Ray / Slurm / gabungan / lainnya, beserta alasannya)

@@ -9,25 +9,27 @@ Repo ini publik. Hostname tailnet, IP, sidik SSH, auth key, dan sandi tidak ditu
 Target kluster, belum berjalan:
 
 - Satu VPS sebagai penghubung. CPU-nya untuk layanan yang harus tetap hidup dan untuk pekerjaan yang terikat akun di mesin itu. Bukan pekerja DePIN.
-- Node yang dipakai lebih dulu: `Grokbox25`. Pada 15 November 2026 mesin itu belum ada di tailnet. VM agen cloud yang hostname-nya `cursor` bukan mesin itu.
-- `grokbox-p4` akan disambungkan lagi oleh owner. Node lain ditambahkan kemudian. Keduanya belum dihitung sebagai node yang sedang dipakai.
+- Server fisik yang direncanakan untuk akun ini: `KomputerBox25`. Pada 15 November 2026, 22.17 WIB, mesin itu tidak ada di tailnet, jadi tidak disambungkan.
+- Cloud yang boleh ikut mesh memakai `CloudGrokBox25`, hanya bila mesin itu tetap hidup saat agen berhenti. Pemeriksaan yang sama: sesi cloud ini mati bersama agen, tidak ada self-hosted worker yang tersambung, dan sesi itu tidak diberi nama `CloudGrokBox25`.
+- Nama lama `grokbox-p4` tidak ada di tailnet pada pemeriksaan itu. Node lain ditambahkan kemudian. Keduanya belum dihitung sebagai node yang sedang dipakai.
 
-Pemeriksaan tailnet pada 15 November 2026, sekitar 21.13 WIB:
+Pemeriksaan tailnet pada 15 November 2026, 22.17 WIB:
 
 - VPS Windows sedang online.
-- Satu node Linux sedang offline. Speknya belum terbaca.
+- `KomputerBox25` tidak ada di daftar.
+- `CloudGrokBox25` tidak dipasang.
 - Laptop tidak muncul.
-- Belum ada 30 Grokbox.
+- Belum ada 30 KomputerBox.
 
-Nama mesin yang sudah ada dan berada di luar konvensi tidak diganti dari dokumen ini.
+Nama Tailscale sesi agen dibiarkan. Sesi itu bukan server fisik dan bukan cloud yang tetap hidup.
 
 ## Framework komputasi
 
-Beban repo ini adalah DePIN. Calon jaringan adalah Akash: CPU dan disk disewakan dari Grokbox, bukan dari VPS.
+Beban repo ini adalah DePIN. Calon jaringan adalah Akash: CPU dan disk disewakan dari KomputerBox, bukan dari VPS.
 
 Akash bukan prioritas. Website dan quantitative-trading harus tetap hidup. Akash hanya boleh memakai sisa compute, dengan buffer, dan tidak pernah 100% CPU atau RAM satu mesin.
 
-Batas per Grokbox:
+Batas per KomputerBox:
 
 - Saat agen AI sedang berjalan, bandwidth dan storage untuk DePIN paling besar 80%.
 - Saat agen AI diam, bandwidth dan storage boleh naik sampai 95%.
@@ -36,11 +38,11 @@ Batas per Grokbox:
 
 Docker memisahkan proses website dan trading dari proses DePIN. Mining tidak dipakai, karena mining mengunci CPU di 100%.
 
-Akash belum dipasang. Pasang di `Grokbox25` setelah mesin itu online, terukur, dan sisa compute sesudah batas di atas masih memenuhi syarat provider di Linux. Jika sisa itu di bawah syarat provider, node itu tidak menjalankan Akash.
+Akash belum dipasang. Pasang di `KomputerBox25` setelah mesin itu online, terukur, dan sisa compute sesudah batas di atas masih memenuhi syarat provider di Linux. Jika sisa itu di bawah syarat provider, node itu tidak menjalankan Akash. Sesi agen yang ikut mati tidak menjalankan Akash.
 
 ## Ketersediaan node
 
-VPS tetap hidup. Putusnya Grokbox tidak boleh mematikan website atau trading.
+VPS tetap hidup. Putusnya KomputerBox tidak boleh mematikan website atau trading.
 
 Bagian 4 dokumen umum berlaku untuk mesin Linux baru setelah konfirmasi. Jangan reboot VPS.
 
@@ -50,10 +52,10 @@ Belum ada perintah deploy. Node baru, auth key, tag, dan Funnel butuh konfirmasi
 
 ## Data dan storage
 
-Disk dan bandwidth untuk DePIN ada di Grokbox, dengan batas di bagian Framework komputasi. VPS (FPS) tidak menyewakan disk, CPU, atau bandwidth. Database website tetap Supabase, di luar repo ini.
+Disk dan bandwidth untuk DePIN ada di KomputerBox, dengan batas di bagian Framework komputasi. VPS (FPS) tidak menyewakan disk, CPU, atau bandwidth. Database website tetap Supabase, di luar repo ini.
 
 ## Catatan khusus
 
 - VPS yang terukur pada pemeriksaan ini: 8 vCPU, 16 GB RAM, Windows, disk sistem hampir penuh. Mesin itu tidak menjadi provider.
-- Perkalian 30 node belum bisa dihitung. Spek satu Grokbox belum terbaca.
+- Perkalian 30 node belum bisa dihitung. Spek satu KomputerBox belum terbaca.
 - Permintaan sewa CPU di jaringan semacam Akash tipis. Jangan mengalihkan 30 node sebagai janji pemasukan.
