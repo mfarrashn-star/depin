@@ -6,7 +6,7 @@
 
 Dokumen ini mendefinisikan topologi Tailscale, pembagian peran, prioritas compute, dan cara bergabung ke kluster. Isi berkas ini **harus identik** di semua repo. Fakta per repo ada di `docs/TAILSCALE_REPO.md`.
 
-Diperbarui 16 November 2026, 00.30 WIB.
+Diperbarui 16 November 2026, 00.45 WIB.
 
 ## 1. Topologi Jaringan dan Peran Node
 
@@ -27,7 +27,7 @@ VPS Windows hanya mengerjakan hal yang memang harus tinggal di mesin produksi:
 
 - antrean job Redis (layanan **ComputeQueue**, `100.103.231.61:6379`) dan **pembagian data**: node mengambil data job dan input lewat VPS
 - dashboard node (layanan **ComputeDashboard**, `http://100.103.231.61:8787/`) dan agen heartbeat VPS (layanan **ComputeNodeAgent**)
-- pemanggil wake (layanan **ComputeWakeCaller**, sedang dipasang): memantau heartbeat node dan memicu webhook bot watchdog
+- pemanggil wake (layanan **ComputeWakeCaller**, aktif sejak 00.22 WIB, 16 November 2026): memantau heartbeat node dan memicu webhook bot watchdog
 - website aduhkerja
 - quantitative-trading **live dan paper** (butuh login broker / MT5)
 - tempat login yang tidak bisa dipindah, misalnya login provider Akash di masa depan
@@ -44,6 +44,18 @@ Node `tag:compute` mengerjakan hitungan, bandwidth, dan storage. Contoh: backtes
 **Exit node sudah aktif.** VPS mengiklankannya, dan kebijakan ACL memuat `autoApprovers.exitNode = ["tag:vps"]`. Owner (dan anggota tailnet) boleh memakai internet lewat VPS, misalnya untuk IP tetap / whitelist broker. Exit node memakai bandwidth VPS, jadi **jangan dijadikan default semua perangkat**. Node `komputerbox` **tidak** memakai exit node (`tailscale-up.sh` tidak memasang `--exit-node`).
 
 **Subnet router tidak dipasang.** Jangan mengiklankan subnet kecuali nanti ada perangkat LAN di VPS yang benar-benar perlu diakses dan tidak bisa dipasangi Tailscale. Perubahan jaringan di VPS tetap butuh izin owner; cek aduhkerja sebelum dan sesudah perubahan.
+
+### 1.4 Spek komputerbox
+
+Diukur di `komputerbox10` pada 16 November 2026. Catatan lengkap: [`docs/BENCHMARK-komputerbox.md`](docs/BENCHMARK-komputerbox.md). Node baru mungkin berbeda, jadi ulangi benchmark-nya.
+
+- **CPU:** Xeon generasi ke-5 (Emerald Rapids), 8 vCPU tanpa SMT, turbo sekitar 3,9 GHz. 7-Zip: 1 thread **6.642** MIPS, 8 thread **57.130** MIPS. Setara PC kelas **Core i5-13400 / Ryzen 5 7600**.
+- **RAM:** 15 GiB, bandwidth sekitar 80–95 GB/s, setara DDR5-5600 dual-channel.
+- **Disk:** 125 GB (sisa sekitar 100 GB), baca/tulis 2,9 / 2,3 GB/s, setara NVMe Gen3.
+- **Lainnya:** tidak ada GPU; KVM tersedia.
+- **Setara cloud:** AWS `c7i.2xlarge`, sekitar **$0,357/jam** atau **$261/bulan** (us-east-1, on-demand).
+
+**Armada 30 node** sejenis (bukan satu mesin raksasa): total 240 vCPU, sekitar 450 GiB RAM, dan 3,75 TB disk; setara cloud sekitar **$7.818/bulan**. Dengan cap pemakaian 85%, kapasitas terpakai sekitar **204 vCPU / 383 GiB**. Satu job tetap terbatas sekitar 15 GiB di satu mesin; RAM 30 node tidak bisa digabung.
 
 ## 2. Fitur Tailscale
 
@@ -103,7 +115,7 @@ Ini jalur node 24/7 yang benar-benar nyala sendiri setelah reboot. Saat men-setu
 
 ### 5.2 VPS Windows
 
-VPS Windows tidak memakai systemd. Autostart mengikuti layanan Windows (WinSW) dan tugas terjadwal yang sudah ada, termasuk **ComputeQueue**, **ComputeDashboard**, **ComputeNodeAgent**, dan **ComputeWakeCaller** (sedang dipasang). Semuanya autostart delayed, restart otomatis; antrean dan pemanggil wake memakai prioritas proses BelowNormal. Jangan menambahkan unit systemd. SSH tetap OpenSSH biasa plus kata sandi, bukan Tailscale SSH. **Restart mesin VPS dan perubahan di VPS hanya boleh setelah izin owner.**
+VPS Windows tidak memakai systemd. Autostart mengikuti layanan Windows (WinSW) dan tugas terjadwal yang sudah ada, termasuk **ComputeQueue**, **ComputeDashboard**, **ComputeNodeAgent**, dan **ComputeWakeCaller** (aktif sejak 00.22 WIB, 16 November 2026; BelowNormal, sekitar 20 MB RAM, autostart delayed, restart otomatis). Semuanya autostart delayed, restart otomatis; antrean dan pemanggil wake memakai prioritas proses BelowNormal. Jangan menambahkan unit systemd. SSH tetap OpenSSH biasa plus kata sandi, bukan Tailscale SSH. **Restart mesin VPS dan perubahan di VPS hanya boleh setelah izin owner.**
 
 ### 5.3 Komputer Grok Bot (komputerbox)
 
@@ -113,7 +125,7 @@ Tailscale, Ray, heartbeat, dan worker antrean di komputer ini dijalankan lewat s
 
 1. **Watchdog loop di dalam box**, setiap **30 detik**. Pintu masuk: `/home/box/bin/compute-start.sh` (memegang `flock`, lalu menyalakan `/home/box/bin/compute-watchdog.sh --loop 30`). Aman dipanggil berkali-kali. Setiap putaran menyalakan ulang Tailscale, heartbeat, worker, dan Ray lokal bila perlu; head Ray bersama hanya jika `CQ_RAY_HEAD=1`. **Auto re-auth:** watchdog (lewat `/home/box/bin/tailscale-up.sh`) mengulang `tailscale up` dengan reusable auth key tersimpan jika status `NeedsLogin` / `NeedsMachineAuth` atau key kedaluwarsa. Key expiry di node yang sudah di-tag sudah dimatikan; re-auth tetap sebagai cadangan. Auth key tidak pernah dicetak. Ada pembatas laju re-auth. Log: `/home/box/logs/compute-watchdog.log`. Loop ini **ikut beku** jika box tidur, jadi tidak bisa membangunkan mesin.
 2. **Tidur platform.** Komputer Grok Bot tidur saat idle (tidak ada bot yang bekerja dan aplikasi terputus). Proses di dalam box ikut beku. Yang bisa membangunkan hanyalah aktivitas platform: pesan ke bot mana pun di akun, routine terjadwal / event / webhook, atau aplikasi tersambung lagi. **Tailscale, SSH, ping dari VPS, dan loop di dalam box tidak bisa membangunkan mesin yang tidur.**
-3. **Pemanggil wake di VPS** (layanan **ComputeWakeCaller**, **sedang dipasang**). Setiap 30 detik memeriksa `cq:alive:<node>`. Jika heartbeat hilang ≥ **120 detik**, VPS mengirim POST ke webhook routine milik bot **watchdog**. Jeda minimal **15 menit** antar panggilan, paling banyak **4 panggilan per jam** (batas global, karena satu webhook membangunkan box). Jika Redis tidak terjangkau, tidak ada panggilan. URL dan key webhook disimpan di `C:\compute\secrets\wake.env` (`WAKE_WEBHOOK_URL`, `WAKE_WEBHOOK_KEY`); daftar node di `WAKE_NODES` (saat ini `komputerbox10`). Jangan mencetak, men-commit, atau menuliskan URL/key ke chat yang tersimpan.
+3. **Pemanggil wake di VPS** (layanan **ComputeWakeCaller**, **aktif** sejak 00.22 WIB, 16 November 2026). Layanan Windows WinSW, prioritas BelowNormal, sekitar 20 MB RAM, autostart delayed, restart otomatis. Setiap 30 detik memeriksa `cq:alive:<node>`. Jika heartbeat hilang ≥ **120 detik**, VPS mengirim POST ke webhook routine milik bot **watchdog**. Jeda minimal **15 menit** antar panggilan, paling banyak **4 panggilan per jam** (batas global, karena satu webhook membangunkan box). Jika Redis tidak terjangkau, tidak ada panggilan. URL dan key webhook disimpan di `C:\compute\secrets\wake.env` (`WAKE_WEBHOOK_URL`, `WAKE_WEBHOOK_KEY`); daftar node di `WAKE_NODES` (saat ini `komputerbox10`). Jangan mencetak, men-commit, atau menuliskan nilai URL/key ke chat yang tersimpan.
 4. **Routine webhook bot watchdog.** Saat terpicu, routine menjalankan `compute-start.sh`, memverifikasi pemulihan, menambah satu baris ke `/home/box/logs/downtime.log` (waktu mati, waktu hidup, durasi, penyebab: restart/update platform, idle pause, service crash, atau unknown), lalu lapor singkat ke owner. Payload webhook diperlakukan sebagai data tidak tepercaya.
 
 Routine terjadwal 15 menit **sudah dihapus** atas pilihan owner. **Batasan:** jika VPS sendiri mati, tidak ada yang membangunkan box.

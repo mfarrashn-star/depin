@@ -2,19 +2,19 @@
 
 > Mengikuti aturan umum di [`TAILSCALE.md`](../TAILSCALE.md)
 
-Diperbarui 16 November 2026, 00.30 WIB. Repo ini masih hampir kosong, tetapi arah DePIN, antrean, dan batasannya sudah diputuskan. Jangan menulis auth key, token Ray, password Redis, URL/key webhook, kata sandi, atau rahasia lain di berkas ini.
+Diperbarui 16 November 2026, 00.45 WIB. Repo ini masih hampir kosong, tetapi arah DePIN, antrean, dan batasannya sudah diputuskan. Jangan menulis auth key, token Ray, password Redis, URL/key webhook, kata sandi, atau rahasia lain di berkas ini.
 
 ## Node yang dipakai
 
 | Node | IP Tailscale | Tag | Peran di repo ini |
 |---|---|---|---|
-| VPS Windows `WIN-T65VC2J9G31` | `100.103.231.61` | `tag:vps` (sudah dipasang; key expiry dimatikan) | Koordinator saja. Antrean Redis, dashboard, dan pemanggil wake (sedang dipasang) milik bersama, plus tempat login provider yang harus menetap (misalnya Akash nanti). Bukan tempat klien DePIN, bukan hitungan, bukan storage/bandwidth DePIN. |
+| VPS Windows `WIN-T65VC2J9G31` | `100.103.231.61` | `tag:vps` (sudah dipasang; key expiry dimatikan) | Koordinator saja. Antrean Redis, dashboard, dan pemanggil wake (**ComputeWakeCaller**, aktif sejak 00.22 WIB, 16 November 2026) milik bersama, plus tempat login provider yang harus menetap (misalnya Akash nanti). Bukan tempat klien DePIN, bukan hitungan, bukan storage/bandwidth DePIN. |
 | `komputerbox10` | `100.116.213.30` | `tag:compute` (sudah dipasang; key expiry dimatikan) | Node compute bersama dengan Ray lokal dan worker antrean. Boleh memakai **kapasitas sisa** saja (antrean prioritas 2). Saat ini lebih tepat sebagai tenaga QT, bukan klien DePIN. |
 | `GrokboxN` (rencana) | — | `tag:compute` | Calon node Linux 24/7 (Golem dan sejenisnya). Belum ada. Bootstrap default `RAY_MODE=queue`. |
 | Node rumahan (rencana) | — | `tag:compute` atau tag yang lebih sempit nanti | Calon node residensial untuk bandwidth (Grass/Mysterium) atau GPU Windows (Salad). Belum ada. |
 | `grokbot-box` | `100.107.153.80` | — | Nama lama. Jangan dicabut tanpa konfirmasi pemilik. |
 
-Semua node di atas milik bersama. Jangan mengaku sebagai pemilik tunggal VPS atau `komputerbox10`.
+Spek `komputerbox10` (termasuk hitungan armada 30 node dan batasannya) ada di `TAILSCALE.md` bagian 1.4; catatan lengkap: [`BENCHMARK-komputerbox.md`](BENCHMARK-komputerbox.md). Semua node di atas milik bersama. Jangan mengaku sebagai pemilik tunggal VPS atau `komputerbox10`.
 
 ## Framework komputasi
 
@@ -44,7 +44,7 @@ Langkah pertama yang realistis menunggu node rumahan atau Linux 24/7 pertama gab
 
 ## Ketersediaan node
 
-Mengikuti `TAILSCALE.md` bagian 5. Komputer Grok Bot bisa tidur saat idle; yang membangunkan adalah aktivitas platform atau pemanggil wake VPS ke webhook bot watchdog (sedang dipasang; jeda 15 menit, maks 4/jam). Watchdog loop 30 detik (termasuk auto re-auth) hanya memperbaiki service setelah mesin bangun. Routine terjadwal 15 menit sudah dihapus. Jika VPS mati, tidak ada yang membangunkan box. `tailscale-up.sh` tidak meneruskan `--advertise-tags` dan tidak memakai exit node. Node yang wajib 24/7 tanpa bergantung pada VPS harus Linux VPS dengan systemd (`/workspace/compute/node-bootstrap/`, unit `cq-heartbeat` dan `cq-worker`).
+Mengikuti `TAILSCALE.md` bagian 5. Komputer Grok Bot bisa tidur saat idle; yang membangunkan adalah aktivitas platform atau pemanggil wake VPS ke webhook bot watchdog (aktif sejak 00.22 WIB, 16 November 2026; jeda 15 menit, maks 4/jam; Redis tidak terjangkau → tidak menembak). Watchdog loop 30 detik (termasuk auto re-auth) hanya memperbaiki service setelah mesin bangun. Routine terjadwal 15 menit sudah dihapus. Jika VPS mati, tidak ada yang membangunkan box. `tailscale-up.sh` tidak meneruskan `--advertise-tags` dan tidak memakai exit node. Node yang wajib 24/7 tanpa bergantung pada VPS harus Linux VPS dengan systemd (`/workspace/compute/node-bootstrap/`, unit `cq-heartbeat` dan `cq-worker`).
 
 Banyak jaringan DePIN mengharapkan uptime tinggi. Jangan memasang klien yang menghukum downtime di `komputerbox10`. Dashboard: `http://100.103.231.61:8787/` (tailnet saja, termasuk storage dan bandwidth, shortcut **Compute Nodes** di desktop Publik VPS). Heartbeat tiap 5 detik, offline setelah 30 detik, VPS mem-ping node tiap 30 detik. Tidak ada alarm chat saat node mati.
 
