@@ -29,7 +29,7 @@ Akash bukan prioritas. Website dan quantitative-trading harus tetap hidup. Akash
 
 Docker memisahkan proses website dan trading dari proses DePIN. Mining tidak dipakai, karena mining mengunci CPU di 100%.
 
-Akash belum dipasang. Pasang di `Grokbox25` setelah mesin itu online, terukur, dan sisa compute sesudah buffer masih memenuhi syarat provider di Linux. Angka buffer belum dikunci. Usulan yang menunggu konfirmasi: sisakan minimal 25% CPU, 25% RAM, dan 2 GB terakhir untuk sistem, layanan sendiri, dan training. Jika sisa itu di bawah syarat provider, node itu tidak menjalankan Akash.
+Akash belum dipasang. Pasang di `Grokbox25` setelah mesin itu online, terukur, dan sisa compute sesudah buffer masih memenuhi syarat provider di Linux. Jatahnya (`optimal`, `25`, atau `50`) dipilih lewat [`scripts/setup-akash-grokbox.sh`](../scripts/setup-akash-grokbox.sh) dan dihitung di [`scripts/akash-share.sh`](../scripts/akash-share.sh). Jika sisa compute di bawah syarat provider, node itu tidak menjalankan Akash.
 
 ## Ketersediaan node
 
@@ -39,7 +39,13 @@ Bagian 4 dokumen umum berlaku untuk mesin Linux baru setelah konfirmasi. Jangan 
 
 ## Cara menjalankan / deploy
 
-Belum ada perintah deploy. Node baru, auth key, tag, dan Funnel butuh konfirmasi. Funnel tetap mati.
+Batas irisan Akash, belum pemasangan provider:
+
+- [`scripts/setup-akash-grokbox.sh`](../scripts/setup-akash-grokbox.sh) — penjelasan tanpa `--confirm`; batas hanya diterapkan di Grokbox dengan `--confirm`
+- [`scripts/akash-share.sh`](../scripts/akash-share.sh) — hitung 10%, 25%, 50%, dan cadangan 2 GB
+- [`scripts/smoke-akash-share.sh`](../scripts/smoke-akash-share.sh) — cek hitungan dan penolakan host, tanpa memasang Akash atau Docker
+
+Akash belum dipasang. Node baru, auth key, tag, dan Funnel butuh konfirmasi. Funnel tetap mati.
 
 ## Data dan storage
 
