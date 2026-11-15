@@ -1,57 +1,53 @@
 # Tailscale: depin
 
-> Mengikuti aturan umum di [TAILSCALE.md](../TAILSCALE.md). Baca dokumen ini sebelum menerapkan bagian 4 dokumen umum.
+> Aturan umum: [TAILSCALE.md](TAILSCALE.md). Baca dokumen ini sebelum menerapkan bagian 4 dokumen umum.
 
-Repo `depin` publik. Hostname, IP Tailscale, nama tailnet, sidik SSH, auth key, dan sandi tidak ditulis di sini.
+Repo ini publik. Hostname tailnet, IP, sidik SSH, auth key, dan sandi tidak ditulis di sini.
 
 ## Node yang dipakai
 
-Belum ada node untuk repo ini. Belum ada layanan yang berjalan.
+Target kluster, belum berjalan:
 
-Nama untuk node baru, setelah user mengonfirmasi pembuatannya:
+- Satu VPS sebagai penghubung dan titik pusat. Bukan pekerja DePIN.
+- Sampai sekitar 30 node `Grokbox1`, `Grokbox2`, dan seterusnya sebagai pekerja komputasi.
+- Akun Cursor grup ditambahkan nanti, satu per satu, setelah dicek. Dokumen ini tidak membuat node.
 
-- VPS: `VPS`
-- Compute: `Grokbox1`, `Grokbox2`, dan seterusnya
+Pemeriksaan tailnet pada 15 November 2026, sekitar 21.13 WIB:
 
-MagicDNS menampilkan nama itu dalam huruf kecil. Node lama yang namanya di luar konvensi ini ditanyakan ke user sebelum diganti.
+- VPS Windows sedang online.
+- Satu node Linux sedang offline. Speknya belum terbaca.
+- Satu ponsel sedang offline. Ponsel bukan pekerja DePIN.
+- Laptop tidak muncul.
+- Belum ada 30 Grokbox.
+
+Nama mesin yang sudah ada dan berada di luar konvensi tidak diganti dari dokumen ini.
 
 ## Framework komputasi
 
-Belum dipasang. Repo ini belum punya beban kerja yang bisa dijadwalkan.
+Beban repo ini adalah DePIN. Calon jaringan adalah Akash: CPU dan disk disewakan dari Grokbox, bukan dari VPS.
 
-Saat beban kerja muncul, pilih dari tabel bagian 5 di `TAILSCALE.md`. Backtest paralel, tuning parameter, dan simulasi Python mulai dari Ray. Slurm ditambah bila antrian job berantakan atau jumlah node membesar. Dua sampai tiga node dengan kerja sederhana memakai Dask, atau Tailscale SSH bersama GNU Parallel.
+Akash bukan prioritas. Website dan quantitative-trading harus tetap hidup. Akash hanya boleh memakai sisa compute, dengan buffer, dan tidak pernah 100% CPU atau RAM satu mesin.
 
-Pemasangan Ray, Slurm, atau Dask menunggu beban kerja itu. Pilihan yang mengubah topologi dikonfirmasi ke user dulu.
+Docker memisahkan proses website dan trading dari proses DePIN. Mining tidak dipakai, karena mining mengunci CPU di 100%.
+
+Akash belum dipasang. Jangan menyalakannya sebelum satu Grokbox terukur dan, sesudah buffer, masih memenuhi syarat provider di Linux. Angka buffer belum dikunci. Usulan yang menunggu konfirmasi: sisakan minimal 25% CPU, 25% RAM, dan 2 GB terakhir untuk sistem dan layanan sendiri. Jika sisa itu di bawah syarat provider, node itu tidak menjalankan Akash.
 
 ## Ketersediaan node
 
-Belum ada service depin yang harus tetap hidup.
+VPS tetap hidup. Putusnya Grokbox tidak boleh mematikan website atau trading.
 
-Saat user meminta setup mesin, ikuti bagian 4 di `TAILSCALE.md`, lalu laporkan:
-
-- `tailscale status`
-- `tailscale ping <nama-node>`
-- `systemctl is-enabled tailscaled` pada mesin Linux
-- uji reboot hanya bila user mengizinkan
-
-`tailscale up` membuat node baru. Jalankan setelah user mengonfirmasi.
+Bagian 4 dokumen umum berlaku untuk mesin Linux baru setelah konfirmasi. Jangan reboot VPS.
 
 ## Cara menjalankan / deploy
 
-Belum ada perintah, path kerja, atau service deploy.
+Belum ada perintah deploy. Node baru, auth key, tag, dan Funnel butuh konfirmasi. Funnel tetap mati.
 
 ## Data dan storage
 
-Belum ada data depin di disk atau di object storage.
-
-Saat data muncul, pilih dari bagian 6 di `TAILSCALE.md`. Parquet dan riset analitik mulai dari MinIO di VPS dan DuckDB di tiap node. Time series yang sering di-query memakai PostgreSQL atau TimescaleDB. Cache ringan memakai Redis. Data besar disimpan dekat node yang membacanya.
-
-Bucket, database, dan share NFS dibuat setelah ada data. Pilihan yang berdampak besar dikonfirmasi ke user dulu.
+Disk untuk DePIN ada di Grokbox. Disk VPS tidak dipakai untuk itu. Database website tetap Supabase, di luar repo ini.
 
 ## Catatan khusus
 
-- Tailscale Funnel tetap mati. Aktifkan hanya setelah persetujuan eksplisit.
-- ACL dan `tag:grokbox` diaktifkan setelah konfirmasi, saat jumlah node membuat aturan per mesin sulit diurus.
-- Auth key dan tagged key hanya setelah konfirmasi. Nilainya tidak masuk repo, PR, atau log.
-- Dokumen ini tidak mengubah prosedur Tailscale di repo lain. Tiap repo memakai `docs/TAILSCALE_REPO.md` sendiri.
-- Pemeriksaan 15 November 2026 di komputer agen cloud untuk run ini: biner `tailscale` dan `tailscaled` tidak ada di PATH. Tidak ada node baru yang dibuat.
+- VPS yang terukur pada pemeriksaan ini: 8 vCPU, 16 GB RAM, Windows, disk sistem hampir penuh. Mesin itu tidak menjadi provider.
+- Perkalian 30 node belum bisa dihitung. Spek satu Grokbox belum terbaca.
+- Permintaan sewa CPU di jaringan semacam Akash tipis. Jangan mengalihkan 30 node sebagai janji pemasukan.
