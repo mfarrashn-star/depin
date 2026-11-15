@@ -8,9 +8,9 @@ Repo ini publik. Hostname tailnet, IP, sidik SSH, auth key, dan sandi tidak ditu
 
 Target kluster, belum berjalan:
 
-- Satu VPS sebagai penghubung dan titik pusat. Bukan pekerja DePIN.
-- Sampai sekitar 30 node `Grokbox1`, `Grokbox2`, dan seterusnya sebagai pekerja komputasi.
-- Akun Cursor grup ditambahkan nanti, satu per satu, setelah dicek. Dokumen ini tidak membuat node.
+- Satu VPS sebagai penghubung. CPU-nya untuk layanan yang harus tetap hidup dan untuk pekerjaan yang terikat akun di mesin itu. Bukan pekerja DePIN.
+- Node yang dipakai lebih dulu: `Grokbox25`. Pada 15 November 2026 mesin itu belum ada di tailnet. VM agen cloud yang hostname-nya `cursor` bukan mesin itu.
+- `grokbox-p4` akan disambungkan lagi oleh owner. Node lain ditambahkan kemudian. Keduanya belum dihitung sebagai node yang sedang dipakai.
 
 Pemeriksaan tailnet pada 15 November 2026, sekitar 21.13 WIB:
 
@@ -29,7 +29,7 @@ Akash bukan prioritas. Website dan quantitative-trading harus tetap hidup. Akash
 
 Docker memisahkan proses website dan trading dari proses DePIN. Mining tidak dipakai, karena mining mengunci CPU di 100%.
 
-Akash belum dipasang. Jangan menyalakannya sebelum satu Grokbox terukur dan, sesudah buffer, masih memenuhi syarat provider di Linux. Angka buffer belum dikunci. Usulan yang menunggu konfirmasi: sisakan minimal 25% CPU, 25% RAM, dan 2 GB terakhir untuk sistem dan layanan sendiri. Jika sisa itu di bawah syarat provider, node itu tidak menjalankan Akash.
+Akash belum dipasang. Pasang di `Grokbox25` setelah mesin itu online, terukur, dan sisa compute sesudah buffer masih memenuhi syarat provider di Linux. Angka buffer belum dikunci. Usulan yang menunggu konfirmasi: sisakan minimal 25% CPU, 25% RAM, dan 2 GB terakhir untuk sistem, layanan sendiri, dan training. Jika sisa itu di bawah syarat provider, node itu tidak menjalankan Akash.
 
 ## Ketersediaan node
 

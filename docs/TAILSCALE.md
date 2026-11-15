@@ -13,6 +13,18 @@ Dokumen ini mendefinisikan konfigurasi Tailscale dan infrastruktur pendukung unt
 | **VPS** | Subnet Router (menjangkau jaringan lokal) dan Exit Node (mengamankan lalu lintas internet) |
 | **Grokbox1, Grokbox2, dst.** | Compute Nodes. Semua terhubung dalam satu jaringan mesh untuk komputasi terdistribusi. Skala bisa sampai sekitar 30 node |
 
+## Pembagian compute
+
+VPS adalah penghubung. CPU di VPS dipakai untuk layanan yang harus tetap hidup, dan untuk pekerjaan yang terikat pada akun di mesin itu. Beban layanan itu juga dibagi ke Grokbox yang sedang online. VPS bukan satu-satunya pekerja, dan VPS bukan pekerja DePIN.
+
+Training dan pekerjaan batch yang tidak terikat akun di VPS dijalankan di Grokbox.
+
+DePIN menyewakan sisa CPU dan disk, hanya di Grokbox, dengan buffer, dan tidak pernah memakai 100% CPU atau RAM. Docker atau batas cgroup memisahkan proses DePIN dari layanan sendiri dan dari training, supaya DePIN tidak mengurangi jatah itu.
+
+Satu Grokbox cukup untuk mulai. Node lain ditambahkan kemudian. Node yang akan disambungkan owner tidak dianggap sudah online. Bila Grokbox putus, layanan di VPS tetap jalan. Training menunggu node yang online.
+
+Bagian 5 di bawah memilih kerangka untuk pekerjaan sendiri. DePIN bukan pengganti tabel itu.
+
 ## 2. Fitur Tailscale
 
 **Aktif**
@@ -27,6 +39,8 @@ Dokumen ini mendefinisikan konfigurasi Tailscale dan infrastruktur pendukung unt
 **Tidak digunakan**
 - **Tailscale Funnel**: sengaja tidak diaktifkan agar layanan tetap privat. Jangan mengaktifkannya tanpa persetujuan eksplisit.
 
+MagicDNS dan Tailscale SSH adalah fitur yang dipakai pada node Linux. ACL, tag, exit node, dan subnet router mengubah siapa yang bisa dijangkau. Sebelum mengaktifkannya, beri tahu user. Jangan mengubah ACL atau menjadikan VPS sebagai exit node di dalam satu langkah yang sama dengan pekerjaan lain.
+
 ## 3. Konvensi Penamaan Node
 
 Semua agent **wajib** mematuhi konvensi ini dan **melakukan konfirmasi ke user sebelum membuat node baru**.
@@ -38,7 +52,7 @@ Catatan: MagicDNS menampilkan nama host dalam huruf kecil (mis. `vps`, `grokbox1
 
 ## 4. Ketersediaan Node (Wajib saat Setup)
 
-Setiap mesin (VPS dan Grokbox) harus **selalu hidup dan selalu terhubung ke tailnet**. Node yang mati, tidur, atau kehilangan koneksi membuat kluster tidak bisa dipakai (gejalanya: status "Not connected" dan ping timeout). Saat agent men-setup atau menyiapkan mesin, pastikan hal berikut:
+Setiap mesin Linux (Grokbox) harus **selalu hidup dan selalu terhubung ke tailnet**. Node yang mati, tidur, atau kehilangan koneksi membuat kluster tidak bisa dipakai (gejalanya: status "Not connected" dan ping timeout). Langkah `systemctl` di bawah untuk mesin Linux. VPS Windows tidak memakai langkah itu, dan agen tidak me-reboot VPS. Saat agent men-setup atau menyiapkan mesin Linux, pastikan hal berikut:
 
 1. **Tailscale jalan otomatis saat boot**
    - `sudo systemctl enable --now tailscaled`
