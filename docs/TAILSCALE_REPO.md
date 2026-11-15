@@ -9,19 +9,18 @@ Repo ini publik. Hostname tailnet, IP, sidik SSH, auth key, dan sandi tidak ditu
 Target kluster, belum berjalan:
 
 - Satu VPS sebagai penghubung. CPU-nya untuk layanan yang harus tetap hidup dan untuk pekerjaan yang terikat akun di mesin itu. Bukan pekerja DePIN.
-- Server fisik yang direncanakan untuk akun ini: `KomputerBox25`. Pada 15 November 2026, 22.17 WIB, mesin itu tidak ada di tailnet, jadi tidak disambungkan.
-- Cloud yang boleh ikut mesh memakai `CloudGrokBox25`, hanya bila mesin itu tetap hidup saat agen berhenti. Pemeriksaan yang sama: sesi cloud ini mati bersama agen, tidak ada self-hosted worker yang tersambung, dan sesi itu tidak diberi nama `CloudGrokBox25`.
-- Nama lama `grokbox-p4` tidak ada di tailnet pada pemeriksaan itu. Node lain ditambahkan kemudian. Keduanya belum dihitung sebagai node yang sedang dipakai.
+- Komputer yang tetap hidup adalah komputer Grok Bot, satu per akun. Nama yang direncanakan untuk akun ini: `KomputerBox25`. Pada 15 November 2026, 22.27 WIB, Grok Bot belum dibuka, jadi komputer itu tidak disambungkan.
+- Cursor web bukan komputer itu. Sesi Cursor web mati bersama agen dan tidak diberi nama `KomputerBox25`.
+- Nama lama `grokbox-p4` dan `CloudGrokBox25` tidak dipakai. Node lain ditambahkan kemudian.
 
 Pemeriksaan tailnet pada 15 November 2026, 22.17 WIB:
 
-- VPS Windows sedang online.
-- `KomputerBox25` tidak ada di daftar.
-- `CloudGrokBox25` tidak dipasang.
+- VPS Windows sedang online pada pemeriksaan 22.17 WIB.
+- Komputer Grok Bot belum masuk, karena aplikasinya belum dibuka pada 22.27 WIB.
 - Laptop tidak muncul.
 - Belum ada 30 KomputerBox.
 
-Nama Tailscale sesi agen dibiarkan. Sesi itu bukan server fisik dan bukan cloud yang tetap hidup.
+Sesi Cursor web dibiarkan. Sesi itu bukan komputer Grok Bot.
 
 ## Framework komputasi
 

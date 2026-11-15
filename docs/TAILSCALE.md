@@ -4,23 +4,23 @@
 > Jangan menaruh konfigurasi spesifik repo di sini. Lihat bagian [Dokumentasi per Repo](#8-dokumentasi-per-repo).
 > Bagian panduan (komputasi, database, storage) bersifat **saran**: agent memilih sendiri sesuai kebutuhan repo.
 
-Dokumen ini mendefinisikan konfigurasi Tailscale dan infrastruktur pendukung untuk pengembangan proyek dan eksekusi komputasi terdistribusi (termasuk trading kuantitatif). Dokumen ini berfungsi sebagai konteks utama bagi AI Agent (Cursor Web) saat menganalisis kode.
+Dokumen ini mendefinisikan konfigurasi Tailscale dan infrastruktur pendukung untuk pengembangan proyek dan eksekusi komputasi terdistribusi (termasuk trading kuantitatif). Cursor web memakai dokumen ini untuk membaca aturan. Komputer yang tetap hidup milik Grok Bot, bukan milik sesi Cursor web.
 
 ## 1. Topologi Jaringan dan Peran Node
 
 | Node | Peran |
 |------|-------|
 | **VPS** | Subnet Router (menjangkau jaringan lokal) dan Exit Node (mengamankan lalu lintas internet) |
-| **KomputerBox1, KomputerBox2, dst.** | Server fisik. Compute node. Mesh dua arah, harus tetap hidup. Skala bisa sampai sekitar 30 node |
-| **CloudGrokBox + nomor akun** | Cloud yang tetap hidup walaupun agen tidak sedang berjalan. Contoh akun ini: `CloudGrokBox25`. Ikut mesh yang sama |
+| **KomputerBox + nomor akun** | Komputer Grok Bot. Satu per akun. Tetap ada berhari-hari, dibuka dari aplikasi Grok Bot, bukan dari Cursor web. Akun ini: `KomputerBox25` |
+| **KomputerBox1, KomputerBox2, dst.** | Server fisik lain, bila nanti ada. Mesh dua arah. Skala bisa sampai sekitar 30 node |
 
-Sesi agen yang mati bersama agen bukan baris di tabel itu.
+Sesi Cursor web mati bersama agen. Sesi itu bukan komputer Grok Bot dan tidak masuk tabel sebagai node yang tetap hidup.
 
 ## Pembagian compute
 
-VPS adalah penghubung. CPU di VPS dipakai untuk layanan yang harus tetap hidup, dan untuk pekerjaan yang terikat pada akun di mesin itu. Beban layanan itu juga dibagi ke KomputerBox yang sedang online, dan ke CloudGrokBox yang memang tetap hidup. VPS bukan satu-satunya pekerja, dan VPS bukan pekerja DePIN.
+VPS adalah penghubung. CPU di VPS dipakai untuk layanan yang harus tetap hidup, dan untuk pekerjaan yang terikat pada akun di mesin itu. Beban layanan itu juga dibagi ke komputer Grok Bot yang sedang online, dan ke KomputerBox fisik yang sedang online. VPS bukan satu-satunya pekerja, dan VPS bukan pekerja DePIN.
 
-Training dan pekerjaan batch yang tidak terikat akun di VPS dijalankan di KomputerBox. CloudGrokBox boleh ikut bila mesin itu tetap tersambung saat agen tidak berjalan.
+Training dan pekerjaan batch yang tidak terikat akun di VPS dijalankan di komputer Grok Bot. Cursor web tidak menjalankan pekerjaan yang harus tetap hidup.
 
 DePIN menyewakan sisa CPU dan disk, hanya di KomputerBox, dengan buffer, dan tidak pernah memakai 100% CPU atau RAM. Docker atau batas cgroup memisahkan proses DePIN dari layanan sendiri dan dari training, supaya DePIN tidak mengurangi jatah itu. DePIN tidak berjalan di VPS dan tidak berjalan di sesi agen yang ikut mati.
 
@@ -49,17 +49,17 @@ MagicDNS dan Tailscale SSH adalah fitur yang dipakai pada node Linux. ACL, tag, 
 Semua agent **wajib** mematuhi konvensi ini dan **melakukan konfirmasi ke user sebelum membuat node baru**.
 
 - VPS: `VPS`
-- Server fisik: `KomputerBox1`, `KomputerBox2`, dan seterusnya
-- Cloud yang tetap hidup saat agen tidak berjalan: `CloudGrokBox` diikuti nomor akun. Akun ini memakai `CloudGrokBox25`
-- Sesi agen yang berhenti bersama agen tidak memakai kedua nama itu
+- Komputer Grok Bot, satu per akun: `KomputerBox` diikuti nomor akun. Akun ini memakai `KomputerBox25`. Komputer itu dibuka di aplikasi Grok Bot
+- Server fisik lain, bila ada: `KomputerBox1`, `KomputerBox2`, dan seterusnya
+- Sesi Cursor web tidak memakai nama itu
 
-MagicDNS menampilkan nama host dalam huruf kecil (mis. `vps`, `komputerbox1`, `cloudgrokbox25`). Nama di konsol memakai huruf itu, tanpa spasi.
+MagicDNS menampilkan nama host dalam huruf kecil (mis. `vps`, `komputerbox25`). Nama di konsol memakai huruf itu, tanpa spasi.
 
-Nama lama `Grokbox1` dan `grokbox-p4` tidak dipakai untuk node baru. Mesin yang sudah terdaftar diganti hanya bila owner meminta nama baru itu. Owner menetapkan pola `KomputerBox` dan `CloudGrokBox` pada 15 November 2026.
+Nama lama `Grokbox1`, `grokbox-p4`, dan `CloudGrokBox25` tidak dipakai untuk node baru. `CloudGrokBox25` bukan komputer Grok Bot. Mesin yang sudah terdaftar diganti hanya bila owner meminta nama baru itu. Owner menetapkan pada 15 November 2026, 22.27 WIB: komputer yang tetap hidup milik Grok Bot, bukan Cursor web.
 
 ## 4. Ketersediaan Node (Wajib saat Setup)
 
-Setiap KomputerBox, dan setiap CloudGrokBox yang memang tetap hidup, harus **selalu hidup dan selalu terhubung ke tailnet**. Hubungan itu dua arah: node bisa dihubungi dari tailnet, dan node bisa menghubungi node lain. Node yang mati, tidur, atau kehilangan koneksi membuat kluster tidak bisa dipakai (gejalanya: status "Not connected" dan ping timeout). Sesi agen yang ikut mati saat agen berhenti tidak memenuhi syarat ini dan tidak dimasukkan sebagai node. Langkah `systemctl` di bawah untuk mesin Linux yang tetap hidup. VPS Windows tidak memakai langkah itu, dan agen tidak me-reboot VPS. Saat agent men-setup atau menyiapkan mesin Linux yang tetap hidup, pastikan hal berikut:
+Komputer Grok Bot, dan setiap KomputerBox fisik yang dipakai, harus **selalu hidup dan selalu terhubung ke tailnet**. Hubungan itu dua arah: node bisa dihubungi dari tailnet, dan node bisa menghubungi node lain. Node yang mati, tidur, atau kehilangan koneksi membuat kluster tidak bisa dipakai (gejalanya: status "Not connected" dan ping timeout). Menyambungkan komputer Grok Bot dilakukan dari aplikasi Grok Bot. Cursor web tidak menyambungkan sesinya sendiri lalu menghitungnya sebagai komputer itu. Pada 15 November 2026, 22.27 WIB, Grok Bot belum dibuka, jadi komputer itu belum masuk tailnet. Langkah `systemctl` di bawah untuk mesin Linux yang tetap hidup. VPS Windows tidak memakai langkah itu, dan agen tidak me-reboot VPS. Saat Grok Bot menyiapkan komputernya, pastikan hal berikut:
 
 1. **Tailscale jalan otomatis saat boot**
    - `sudo systemctl enable --now tailscaled`
@@ -67,7 +67,7 @@ Setiap KomputerBox, dan setiap CloudGrokBox yang memang tetap hidup, harus **sel
    - `sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target`
    - Untuk laptop: abaikan penutupan lid (`HandleLidSwitch=ignore` di `/etc/systemd/logind.conf`), dan pastikan terhubung ke daya.
 3. **Key tidak boleh kedaluwarsa untuk node server**
-   - Matikan key expiry untuk VPS, KomputerBox, dan CloudGrokBox di admin console Tailscale (atau gunakan tagged auth key, yang tidak kedaluwarsa seperti key user).
+   - Matikan key expiry untuk VPS dan komputer Grok Bot di admin console Tailscale (atau gunakan tagged auth key, yang tidak kedaluwarsa seperti key user).
 4. **Gabung ke tailnet dengan Tailscale SSH aktif**
    - `sudo tailscale up --ssh` (tambahkan `--advertise-tags=tag:komputerbox` bila memakai tag dan ACL).
 5. **Proses kerja berjalan sebagai service**
@@ -116,7 +116,7 @@ Untuk repo dengan banyak node yang membaca data besar, pertimbangkan jarak jarin
 
 ## 7. Konteks bagi Agent
 
-- Saat file ini ada di repo, agent memahami topologi komputasi yang tersedia, termasuk akses SSH ke VPS dan pemanfaatan KomputerBox serta CloudGrokBox yang tetap hidup.
+- Saat file ini ada di repo, agent memahami topologi komputasi yang tersedia, termasuk akses SSH ke VPS. Komputer yang tetap hidup adalah komputer Grok Bot. Cursor web tidak menggantikan komputer itu.
 - Pilihan akhir framework dan storage ditentukan oleh agent berdasarkan kebutuhan repo yang sedang dikerjakan. Jika ragu atau pilihan berdampak besar, konfirmasi ke user.
 
 ## 8. Dokumentasi per Repo
@@ -137,7 +137,7 @@ Template minimal dokumen per repo:
 > Mengikuti aturan umum di TAILSCALE.md
 
 ## Node yang dipakai
-- (mis. VPS, KomputerBox1, CloudGrokBox25)
+- (mis. VPS, komputer Grok Bot `KomputerBox25`)
 
 ## Framework komputasi
 - (Ray / Slurm / gabungan / lainnya, beserta alasannya)
