@@ -1,0 +1,159 @@
+// Kebijakan ACL tailnet untuk kluster compute (diterapkan lewat API).
+// Tidak mengandung rahasia. Cadangan kebijakan lama: /home/box/backups/tailscale/
+//
+// Tag:
+//   - tag:compute : komputerbox10 dan node compute berikutnya
+//   - tag:vps     : VPS Windows (koordinator: Redis antrean 6379, dashboard 8787, exit node)
+//   Perangkat owner (HP, laptop) tetap tanpa tag. Jangan menag ulang grokbot-box.
+//
+// Node baru gabung lewat /workspace/compute/node-bootstrap/ plus reusable auth key
+// yang membawa tag:compute.
+//
+// Funnel tetap mati: tidak ada nodeAttrs "funnel".
+// VPS Windows bukan server Tailscale SSH; masuk lewat OpenSSH (TCP 22) / RDP (3389).
+//
+// Grant ke/dari VPS dan komputerbox10 juga ditulis per-IP Tailscale supaya akses tetap
+// jalan di masa transisi penag-an (IP tidak berubah saat device di-tag).
+// Port layanan VPS tidak boleh dibuka ke internet.
+
+{
+	"tagOwners": {
+		"tag:compute": ["m.farras.hn@gmail.com"],
+		"tag:vps":     ["m.farras.hn@gmail.com"],
+	},
+
+	"autoApprovers": {
+		// Exit node yang diiklankan VPS otomatis disetujui.
+		"exitNode": ["tag:vps"],
+	},
+
+	"grants": [
+		// Perangkat owner (tanpa tag) tetap akses penuh ke semua perangkat.
+		{
+			"src": ["m.farras.hn@gmail.com", "autogroup:admin"],
+			"dst": ["*"],
+			"ip":  ["*"],
+		},
+
+		// Owner boleh memakai exit node (internet lewat VPS).
+		{
+			"src": ["m.farras.hn@gmail.com", "autogroup:member"],
+			"dst": ["autogroup:internet"],
+			"ip":  ["*"],
+		},
+
+		// Port Ray antar node compute.
+		{
+			"src": ["tag:compute"],
+			"dst": ["tag:compute"],
+			"ip": [
+				"tcp:6379-6381",
+				"tcp:8265",
+				"tcp:10001",
+				"tcp:10002-10200",
+				"tcp:52365",
+				"tcp:8090",
+				"icmp:*",
+			],
+		},
+
+		// Node compute -> VPS: SSH + RDP (agen mengonfigurasi VPS), Redis antrean,
+		// dashboard 8787, dan rentang 8000-8099 untuk layanan koordinator berikutnya.
+		{
+			"src": ["tag:compute", "100.116.213.30"],
+			"dst": ["tag:vps", "100.103.231.61"],
+			"ip":  ["tcp:22", "tcp:3389", "tcp:6379", "tcp:8787", "tcp:8000-8099", "icmp:*"],
+		},
+
+		// VPS -> node compute: heartbeat ping (ICMP), cek kesehatan Ray/dashboard,
+		// dan klien Ray bila VPS perlu submit job.
+		{
+			"src": ["tag:vps", "100.103.231.61"],
+			"dst": ["tag:compute", "100.116.213.30"],
+			"ip": [
+				"icmp:*",
+				"tcp:22",
+				"tcp:6379-6381",
+				"tcp:8265",
+				"tcp:10001",
+				"tcp:8090",
+				"tcp:52365",
+			],
+		},
+	],
+
+	"ssh": [
+		// Tailscale SSH owner ke node compute (komputerbox10 menjalankan --ssh).
+		{
+			"action":      "check",
+			"checkPeriod": "12h",
+			"src":         ["m.farras.hn@gmail.com"],
+			"dst":         ["tag:compute"],
+			"users":       ["box", "root", "autogroup:nonroot"],
+		},
+		// Dipertahankan dari kebijakan lama: Tailscale SSH ke perangkat sendiri (check mode).
+		{
+			"action": "check",
+			"src":    ["autogroup:member"],
+			"dst":    ["autogroup:self"],
+			"users":  ["autogroup:nonroot", "root"],
+		},
+	],
+
+	"sshTests": [
+		{
+			"src":   "m.farras.hn@gmail.com",
+			"dst":   ["tag:compute"],
+			"check": ["box", "root"],
+		},
+	],
+
+	"tests": [
+		{
+			"src": "tag:compute",
+			"accept": [
+				"tag:compute:6379",
+				"tag:compute:8265",
+				"tag:compute:10001",
+				"tag:compute:10200",
+				"tag:compute:52365",
+				"tag:compute:8090",
+				"tag:vps:22",
+				"tag:vps:3389",
+				"tag:vps:6379",
+				"tag:vps:8787",
+				"tag:vps:8000",
+				"100.103.231.61:22",
+				"100.103.231.61:6379",
+				"100.103.231.61:8787",
+			],
+			"deny": ["tag:vps:445", "tag:vps:5985"],
+		},
+		{
+			"src": "100.116.213.30",
+			"accept": [
+				"100.103.231.61:22",
+				"100.103.231.61:3389",
+				"100.103.231.61:6379",
+				"100.103.231.61:8787",
+			],
+		},
+		{
+			"src":    "tag:vps",
+			"accept": ["tag:compute:6379", "tag:compute:8265", "100.116.213.30:6379"],
+			"deny":   ["tag:compute:3389"],
+		},
+		{
+			"src": "m.farras.hn@gmail.com",
+			"accept": [
+				"tag:compute:6379",
+				"tag:compute:10001",
+				"tag:vps:22",
+				"tag:vps:3389",
+				"tag:vps:8787",
+				"100.103.231.61:8787",
+				"100.106.33.4:443",
+			],
+		},
+	],
+}
