@@ -2,7 +2,7 @@
 
 > Mengikuti aturan umum di [`TAILSCALE.md`](../TAILSCALE.md)
 
-Diperbarui 16 November 2026, 00.48 WIB. Repo ini masih hampir kosong, tetapi arah DePIN, antrean, dan batasannya sudah diputuskan. Jangan menulis auth key, token Ray, password Redis, URL/key webhook, kata sandi, atau rahasia lain di berkas ini.
+Diperbarui 16 November 2026, 22.20 WIB. Repo ini masih hampir kosong, tetapi arah DePIN, antrean, dan batasannya sudah diputuskan. Jangan menulis auth key, token Ray, password Redis, URL/key webhook, kata sandi, private key WireGuard / isi `snet.conf`, atau rahasia lain di berkas ini.
 
 ## Node yang dipakai
 
@@ -66,9 +66,10 @@ Jangan menaruh kredensial provider DePIN atau password Redis di repo. Jangan mem
 
 ## Catatan khusus
 
+- Jalur Tailscale box↔VPS sekarang langsung lewat IP publik S-Network (`TAILSCALE.md` bagian 1.5): `direct 8.215.14.48:41641`, latensi stabil sekitar 200 ms, cadangan DERP otomatis. Bandwidth langsung 5–10 Mbps; perpanjang langganan sebelum 16 Desember 2026.
 - Funnel tetap mati, kecuali ada keputusan baru dari pemilik.
 - Kebijakan ACL sudah diterapkan: [`tailnet-policy.hujson`](tailnet-policy.hujson). Simpan kebijakan **sebelum** menag node baru.
 - Exit node VPS sudah aktif; subnet router tidak dipasang. Komputerbox tidak memakai exit node.
-- Jangan menulis rahasia ke repo, termasuk URL/key webhook.
+- Jangan menulis rahasia ke repo, termasuk URL/key webhook dan private key WireGuard / isi `snet.conf`.
 - Jangan menyentuh `grokbot-box`. Perubahan di VPS butuh izin pemilik.
 - Agen tidak menggabungkan PR.
