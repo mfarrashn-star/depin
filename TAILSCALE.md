@@ -6,7 +6,7 @@
 
 Dokumen ini mendefinisikan topologi Tailscale, pembagian peran, prioritas compute, dan cara bergabung ke kluster. Isi berkas ini **harus identik** di semua repo. Fakta per repo ada di `docs/TAILSCALE_REPO.md`.
 
-Diperbarui 16 November 2026, 00.48 WIB.
+Diperbarui 16 November 2026, 22.20 WIB.
 
 ## 1. Topologi Jaringan dan Peran Node
 
@@ -56,6 +56,31 @@ Diukur di `komputerbox10` pada 16 November 2026. Catatan lengkap: [`docs/BENCHMA
 - **Setara cloud:** AWS `c7i.2xlarge`, sekitar **$0,357/jam** atau **$261/bulan** (us-east-1, on-demand).
 
 **Armada 30 node** sejenis (bukan satu mesin raksasa): total 240 vCPU, sekitar 450 GiB RAM, dan 3,75 TB disk; setara cloud sekitar **$7.818/bulan**. Dengan cap pemakaian 85%, kapasitas terpakai sekitar **204 vCPU / 383 GiB**. Satu job tetap terbatas sekitar 15 GiB di satu mesin; RAM 30 node tidak bisa digabung.
+
+### 1.5 Jalur langsung box↔VPS via IP publik S-Network
+
+Dipasang 16 November 2026. Tujuannya bukan mempercepat ping, melainkan menstabilkan jalur agar heartbeat tidak putus.
+
+**Mengapa.** `komputerbox10` dan VPS sama-sama di belakang NAT (tipe NAT box: `MappingVariesByDestIP`; VPS di NAT penyedia, IP publik `103.186.31.46` dengan port map). Tanpa titik UDP yang bisa dihubungi dari luar, Tailscale memakai relay DERP Singapura (derp-3). Latensi 182–350 ms, dan koneksi TCP ke derp-3 sering setengah mati sekitar setiap 11 menit, sehingga heartbeat timeout dan dashboard menandai node MATI padahal mesinnya nyala.
+
+Percobaan port forward biasa plus `TS_DEBUG_PRETENDPOINT` gagal: Tailscale di Windows mengikat soket ke antarmuka default route (Ethernet0), jadi balasan keluar lewat jalur internet VPS, bukan lewat tunnel, lalu hilang.
+
+**Yang dipasang.** Langganan S-Network "IP Public Static" ([dash.s-net.id](https://dash.s-net.id)), IP statis `8.215.14.48`, berbayar Rp10.000/bulan, bandwidth 5–10 Mbps dipakai bersama, aktif sampai **16 Desember 2026**. Perpanjang sebelum tanggal itu.
+
+- Layanan WireGuard Windows `WireGuardTunnel$snet` di VPS. Antarmuka `snet`: `10.11.200.2/30`, gateway `10.11.200.1`. Split tunnel: `AllowedIPs` hanya `10.11.200.0/30`. Route default, internet, aduhkerja, dan QT live/paper **tetap lewat jalur biasa**, tidak lewat tunnel.
+- Konfigurasi: `C:\ProgramData\snet-wg\snet.conf` (hanya SYSTEM dan Administrators). Berkas ini berisi private key — **jangan di-commit, dicetak, atau dikirim di chat**.
+- Port forward di tab Public Access S-Network: UDP publik **41641** → `10.11.200.2:41642`. S-Network SNAT alamat pengirim menjadi `10.11.200.1`.
+- Penerus UDP: `C:\ProgramData\snet-wg\snet_udp_fwd.py`, dijalankan dengan `C:\compute\python`, prioritas BelowNormal, sekitar 11 MB RAM. Mendengarkan `10.11.200.2:41642`, lalu merelay per-pengirim ke tailscaled di `192.168.19.116:41641` (IP Ethernet0 VPS; `127.0.0.1` tidak jalan karena pengikatan soket di atas). Tugas terjadwal `snet-udp-fwd` (SYSTEM, saat boot +45 detik, restart tiap 1 menit). Aturan firewall: `snet-udp-fwd 41642`. Log: `C:\ProgramData\snet-wg\fwd.log` (rotasi 1 MB).
+- Registry layanan Tailscale: `HKLM\SYSTEM\CurrentControlSet\Services\Tailscale`, nilai `Environment` = `TS_DEBUG_PRETENDPOINT=8.215.14.48:41641`. Setelan ini otomatis aktif lagi setelah restart VPS.
+
+**Hasil.** `tailscale status` menampilkan jalur **direct** `8.215.14.48:41641`. Latensi tetap sekitar **200 ms** (stabil), karena `komputerbox10` jauh (DERP terdekatnya Seattle). Bukan lebih cepat, tetapi tidak lagi naik-turun 180–350 ms dan tidak lagi setengah putus. Jika S-Network atau penerus UDP mati, Tailscale otomatis kembali ke DERP. Lalu lintas langsung box↔VPS terbatas 5–10 Mbps (cukup untuk antrean dan heartbeat; kirim berkas besar ke VPS akan kena batas ini).
+
+**Operasi.**
+
+- Perpanjang langganan sebelum 16 Desember 2026.
+- Cek jalur: `tailscale ping` / kolom **Ping dari VPS** di dashboard, dan `fwd.log`.
+- Rollback: jalankan `ts-rollback.ps1` lewat tugas terjadwal (jangan lewat SSH, karena restart layanan Tailscale memutus sesi). Hapus tugas `snet-udp-fwd` dan aturan firewall-nya. Opsional: `wireguard.exe /uninstalltunnelservice snet`.
+- Setiap restart layanan Tailscale di VPS juga merestart Redis, heartbeat, dan dashboard; semuanya pulih sendiri.
 
 ## 2. Fitur Tailscale
 
@@ -115,7 +140,7 @@ Ini jalur node 24/7 yang benar-benar nyala sendiri setelah reboot. Saat men-setu
 
 ### 5.2 VPS Windows
 
-VPS Windows tidak memakai systemd. Autostart mengikuti layanan Windows (WinSW) dan tugas terjadwal yang sudah ada, termasuk **ComputeQueue**, **ComputeDashboard**, **ComputeNodeAgent**, dan **ComputeWakeCaller** (aktif sejak 00.22 WIB, 16 November 2026; BelowNormal, sekitar 20 MB RAM, autostart delayed, restart otomatis). Semuanya autostart delayed, restart otomatis; antrean dan pemanggil wake memakai prioritas proses BelowNormal. Jangan menambahkan unit systemd. SSH tetap OpenSSH biasa plus kata sandi, bukan Tailscale SSH. **Restart mesin VPS dan perubahan di VPS hanya boleh setelah izin owner.**
+VPS Windows tidak memakai systemd. Autostart mengikuti layanan Windows (WinSW) dan tugas terjadwal yang sudah ada, termasuk **ComputeQueue**, **ComputeDashboard**, **ComputeNodeAgent**, dan **ComputeWakeCaller** (aktif sejak 00.22 WIB, 16 November 2026; BelowNormal, sekitar 20 MB RAM, autostart delayed, restart otomatis). Semuanya autostart delayed, restart otomatis; antrean dan pemanggil wake memakai prioritas proses BelowNormal. Jangan menambahkan unit systemd. SSH tetap OpenSSH biasa plus kata sandi, bukan Tailscale SSH. Jalur langsung Tailscale box↔VPS memakai tunnel WireGuard S-Network (`WireGuardTunnel$snet`) dan penerus UDP (tugas terjadwal `snet-udp-fwd`); rincian di [bagian 1.5](#15-jalur-langsung-boxvps-via-ip-publik-s-network). **Restart mesin VPS dan perubahan di VPS hanya boleh setelah izin owner.**
 
 ### 5.3 Komputer Grok Bot (komputerbox)
 
@@ -139,7 +164,7 @@ Detail Tailscale di box:
 - Mode di `komputerbox10`: **kernel TUN** pada antarmuka `tailscale0`. Root punya `CAP_NET_ADMIN`.
 - Jika `/dev/net/tun` atau hak itu tidak ada, skrip jatuh ke `--tun=userspace-networking`. Mode userspace membatasi lalu lintas inbound: node lain sering tidak bisa membuka TCP ke port layanan (misalnya Ray).
 - Proxy SOCKS5 tetap di `localhost:1055` pada kedua mode, dipakai SSH ke VPS Windows.
-- Tipe NAT box adalah `MappingVariesByDestIP`, jadi koneksi ke peer cenderung lewat relay DERP (sekitar 200 ms), meskipun mode sudah TUN.
+- Tipe NAT box adalah `MappingVariesByDestIP`. Jalur ke VPS sekarang langsung lewat IP publik S-Network (lihat [bagian 1.5](#15-jalur-langsung-boxvps-via-ip-publik-s-network)); jika tunnel atau penerus UDP mati, Tailscale otomatis kembali ke DERP. Peer lain masih bisa lewat DERP.
 - Heartbeat dan worker antrean di box: `/home/box/compute/{heartbeat,worker}.py`, dijaga `/home/box/bin/compute-services.sh`. Setelan tanpa rahasia: `/home/box/.config/compute/node.env`. Log: `/home/box/logs/cq-*.log`. Sebelum menyalakan worker lagi, `compute-services.sh` membersihkan agen Ray yatim (`ray::DashboardAgent` / `RuntimeEnvAgent`, plus GCS/raylet sesi lokal selain port 6379). Head bersama (GCS 6379) tidak disentuh.
 
 **Autostart tanpa agent atau shell interaktif tidak dijamin oleh platform.** Temuan 15–16 November 2026 (WIB) di `komputerbox10`:
@@ -160,14 +185,14 @@ Sudah hidup:
 - Isi dashboard: node yang aktif atau mati, plus CPU, RAM, storage, bandwidth, dan kolom **Ping dari VPS** (ms, jalur, umur) per node (termasuk VPS) serta totalnya. Jika layanan restart (±2 detik), halaman tetap menampilkan data terakhir, menulis "Menyambung ulang…", dan mencoba lagi tiap 2 detik.
 - **Tidak ada alarm chat** saat node mati (keputusan owner). Bot watchdog tetap lapor ke owner setiap kali webhook wake berjalan, dan mencatat ke `downtime.log`.
 
-Firewall VPS hanya membolehkan TCP 6379 dan 8787 dari CGNAT Tailscale `100.64.0.0/10`.
+Firewall VPS hanya membolehkan TCP 6379 dan 8787 dari CGNAT Tailscale `100.64.0.0/10`. Port UDP 41641 (tailscaled) dan 41642 (penerus S-Network) diatur di [bagian 1.5](#15-jalur-langsung-boxvps-via-ip-publik-s-network); jangan membuka 6379 atau 8787 ke IP publik, termasuk `8.215.14.48`.
 
 ### 5.5 Verifikasi setelah setup
 
 Agent wajib menjalankan dan melaporkan hasilnya ke owner:
 
 - `tailscale status`: node muncul, berstatus terhubung, dan tag-nya benar (`tag:compute` atau `tag:vps`).
-- `tailscale ping <nama-atau-ip-node>`: balasan sukses dari node lain (boleh lewat DERP).
+- `tailscale ping <nama-atau-ip-node>`: balasan sukses dari node lain. box↔VPS sebaiknya `direct` ke `8.215.14.48:41641` (lihat [bagian 1.5](#15-jalur-langsung-boxvps-via-ip-publik-s-network)); DERP hanya cadangan.
 - Node baru muncul di `http://100.103.231.61:8787/` dalam beberapa detik.
 - `systemctl is-enabled tailscaled` (dan `cq-heartbeat`, `cq-worker`): hasilnya `enabled` — **hanya** di Linux VPS / Grokbox. Jangan dijalankan di VPS Windows atau komputer Grok Bot.
 - Uji reboot hanya pada mesin yang boleh di-reboot: setelah restart, node kembali online sendiri. Jangan merestart VPS Windows tanpa perintah owner.
@@ -196,7 +221,7 @@ Pola yang sudah diputuskan owner, dan yang harus diikuti repo baru kecuali ada k
 - Port tetap (mode cluster): GCS 6379, client 10001, node-manager 6380, object-manager 6381, dashboard-agent 52365, metrics 8090, worker 10002–10200. Port 6379 di **VPS** adalah Redis antrean, bukan Ray.
 - **Token auth wajib untuk head bersama / mode cluster.** `RAY_AUTH_MODE=token`. Token disimpan di berkas mode `600` (di head: `/home/box/.config/ray/auth_token`; di node systemd mode cluster: `/etc/ray/auth_token`). Jangan `cat` isinya, jangan menulisnya ke chat, PR, log, atau repo, dan jangan men-commit berkas itu. Koneksi tanpa token atau dengan token salah harus ditolak. Salin token antar node lewat tailnet (misalnya `scp`), bukan lewat chat. Mode `queue` (default) tidak perlu menyalin token Ray.
 - Karena default sudah Ray per node, kluster tidak bergantung pada `komputerbox10` yang tidak dijamin 24/7. Jika nanti butuh head bersama yang 24/7, pindahkan ke Grokbox Linux pertama (izin owner).
-- Latensi antar-node sering lewat DERP (~200 ms). Cocok untuk job yang lumayan besar per potong (misalnya backtest per set parameter), bukan tugas yang sangat chatty.
+- Latensi box↔VPS sekarang langsung dan stabil sekitar 200 ms (lihat [bagian 1.5](#15-jalur-langsung-boxvps-via-ip-publik-s-network)); peer lain masih bisa lewat DERP. Cocok untuk job yang lumayan besar per potong (misalnya backtest per set parameter), bukan tugas yang sangat chatty.
 
 ### 6.2 Antrean job di VPS
 
@@ -332,10 +357,10 @@ Langkah DePIN pertama yang masuk akal menunggu node rumahan atau Linux 24/7 pert
 ## 10. Aturan Wajib bagi Agent
 
 - Funnel tetap mati.
-- Jangan menulis auth key Tailscale, token Ray, password Redis / isi `queue.env`, isi `r2.env` / kredensial R2, kata sandi SSH, token GitHub, URL atau key webhook wake, atau rahasia lain ke repo, isu, PR, log, atau chat yang tersimpan. Berkas secret mode `600` dan tidak di-commit.
+- Jangan menulis auth key Tailscale, token Ray, password Redis / isi `queue.env`, isi `r2.env` / kredensial R2, kata sandi SSH, token GitHub, URL atau key webhook wake, private key WireGuard / isi `snet.conf`, atau rahasia lain ke repo, isu, PR, log, atau chat yang tersimpan. Berkas secret mode `600` dan tidak di-commit.
 - Jangan men-commit `vps_ssh.py` atau skrip pembantu yang memuat kredensial.
 - Jangan menyentuh `grokbot-box`.
-- Perubahan di VPS (jaringan, layanan produksi, restart, exit node, antrean, dashboard, pemanggil wake) butuh izin owner. Cek aduhkerja sebelum dan sesudah perubahan yang disetujui.
+- Perubahan di VPS (jaringan, layanan produksi, restart, exit node, antrean, dashboard, pemanggil wake, tunnel S-Network, penerus UDP) butuh izin owner. Cek aduhkerja sebelum dan sesudah perubahan yang disetujui.
 - Jangan push ke `main`/`master` dan jangan menggabungkan PR. Untuk quantitative-trading, **CHIEF adalah satu-satunya merger**.
 - Konfirmasi ke owner sebelum membuat node tailnet baru, membuat auth key baru, atau mengganti nama node lama.
 - Simpan kebijakan ACL **sebelum** menag node baru.
