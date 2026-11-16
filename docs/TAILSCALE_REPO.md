@@ -2,7 +2,7 @@
 
 > Mengikuti aturan umum di [`TAILSCALE.md`](../TAILSCALE.md)
 
-Diperbarui 16 November 2026, 22.20 WIB. Repo ini masih hampir kosong, tetapi arah DePIN, antrean, dan batasannya sudah diputuskan. Jangan menulis auth key, token Ray, password Redis, URL/key webhook, kata sandi, private key WireGuard / isi `snet.conf`, atau rahasia lain di berkas ini.
+Diperbarui 16 November 2026, 22.25 WIB. Repo ini masih hampir kosong, tetapi arah DePIN, antrean, dan batasannya sudah diputuskan. Jangan menulis auth key, token Ray, password Redis, URL/key webhook, kata sandi, private key WireGuard / isi `snet.conf`, atau rahasia lain di berkas ini.
 
 ## Node yang dipakai
 
@@ -66,6 +66,7 @@ Jangan menaruh kredensial provider DePIN atau password Redis di repo. Jangan mem
 
 ## Catatan khusus
 
+- Setup akun atau komputerbox baru dari nol: `TAILSCALE.md` bagian 12 (bot watchdog, pemanggil wake, bootstrap box, antrean, ACL, jalur S-Network).
 - Jalur Tailscale box↔VPS sekarang langsung lewat IP publik S-Network (`TAILSCALE.md` bagian 1.5): `direct 8.215.14.48:41641`, latensi stabil sekitar 200 ms, cadangan DERP otomatis. Bandwidth langsung 5–10 Mbps; perpanjang langganan sebelum 16 Desember 2026.
 - Funnel tetap mati, kecuali ada keputusan baru dari pemilik.
 - Kebijakan ACL sudah diterapkan: [`tailnet-policy.hujson`](tailnet-policy.hujson). Simpan kebijakan **sebelum** menag node baru.
