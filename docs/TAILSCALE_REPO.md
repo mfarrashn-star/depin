@@ -1,6 +1,6 @@
 # Tailscale: depin
 
-> Mengikuti aturan umum di [`TAILSCALE.md`](../TAILSCALE.md)
+> Aturan umum: [`infra-docs/tailscale/TAILSCALE.md`](https://github.com/mfarrashn-star/infra-docs/blob/main/tailscale/TAILSCALE.md). Repo ini hanya menyimpan fakta khusus repo.
 
 Diperbarui 16 November 2026, 22.25 WIB. Repo ini masih hampir kosong, tetapi arah DePIN, antrean, dan batasannya sudah diputuskan. Jangan menulis auth key, token Ray, password Redis, URL/key webhook, kata sandi, private key WireGuard / isi `snet.conf`, atau rahasia lain di berkas ini.
 
